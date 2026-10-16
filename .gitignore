@@ -1,0 +1,31 @@
+# 本仓库只带脚本与说明，不带素材：官方美术不进 git，也不对外分发（主项目 docs/PLUGINS.md §1）。
+# operator-skin-select/ 里由 tools/build-plugin.py 生成的素材与生成物留在本机；插件模板 plugin.json 仍留在仓库。
+operator-skin-select/spine/
+operator-skin-select/skin/
+operator-skin-select/assets.json
+operator-skin-select/plugin.lock.json
+
+# 拆分出来的包（operator-skin-select-2、-3 …）：整个文件夹都是生成物，同样留在本机。
+operator-skin-select-*/
+
+# 立绘并行转码的暂存目录（构建结尾会删掉；异常退出时可能留下）
+.build-illust-staging/
+
+# 打包产物：本插件只在本机构建，不再走 Release / zip；历史上生成的 zip 也留在本机。
+dist/
+
+# 生成的目录表（skinId → name/group）与提取元数据：只有元数据，没有美术。
+# tools/skin-catalogue.py 从本机客户端提取产物生成；这份是**每次构建的中间产物**（data/skin-table.json、
+# data/build-report.json），不进 git。
+data/
+
+# 随仓库分发的那份目录表在 catalogue/：**跟踪**，只有元数据（skinId / stem / charId / 名字 / 分组），
+# 不含美术、不含 URL。由 tools/local-catalogue.py 生成，出处见文件自己的 source 块与 NOTICE.md §目录表。
+# data/ 不因为它放开任何一行。
+
+# deploy.mjs 的每步状态（输入签名 + 上次的客户端路径），用于"跳过（已存在）"
+.deploy/
+
+# Python 的字节码缓存
+__pycache__/
+*.pyc
