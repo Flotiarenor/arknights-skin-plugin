@@ -42,10 +42,10 @@ node deploy.mjs --server <服务器检出> --game "<客户端 AB\Windows>" --yes
 
 | | |
 | --- | --- |
-| 仓库里有的 | `deploy.mjs`（一键部署九步）、`extract/`（自带的客户端提取器：`extract.py` / `scenes.py` / `aklz4.py` / `skins.py`）、`tools/build-plugin.py`（构建 + 拆包）、`tools/merge-bundles.mjs`（基础树 + 热更目录的合并视图，§9.7）、`tools/skin-catalogue.py`（生成目录表）、`tools/local-catalogue.py`（生成随仓库分发的那份目录表）、`tools/bench-webp.py`（WebP 基准）、**`catalogue/skins.json`**（276 套皮肤的纯元数据目录表，见 §6）、`operator-skin-select/plugin.json`（清单模板，构建会覆盖它）、`LICENSE`（GPL-3.0 全文，**只为 `extract/` 而放**，见 §11）、本说明、`NOTICE.md` |
+| 仓库里有的 | `deploy.mjs`（一键部署九步）、`extract/`（自带的客户端提取器：`extract.py` / `scenes.py` / `aklz4.py` / `skins.py` / `token_skins.py`）、`tools/build-plugin.py`（构建 + 拆包）、`tools/merge-bundles.mjs`（基础树 + 热更目录的合并视图，§9.7）、`tools/skin-catalogue.py`（生成目录表）、`tools/local-catalogue.py`（生成随仓库分发的那份目录表）、`tools/bench-webp.py`（WebP 基准）、**`catalogue/skins.json`**（276 套皮肤的纯元数据目录表，见 §6）、`operator-skin-select/plugin.json`（清单模板，构建会覆盖它）、`LICENSE`（GPL-3.0 全文，**只为 `extract/` 而放**，见 §11）、本说明、`NOTICE.md` |
 | 仓库里没有的 | 所有 `.skel` / `.atlas` / `.png`，以及生成物 `assets.json`、`plugin.lock.json`、`data/`、拆出来的 `operator-skin-select*/` 素材目录、`.build-illust-staging/`、`.deploy/`、`dist/`（见 `.gitignore`；`git status --ignored` 可核对） |
 | 素材唯一的来源 | `<服务器检出>/public/assets/local` —— 本机客户端的提取产物。提取里有多少套就收多少套，**没有远程素材库、没有社区 dump、没有"补差"清单** |
-| 插件类别 | `class: cosmetic` · `scope: ["personal"]` · `permissions: ["assets.override"]`（`operator-skin-select/plugin.json`） |
+| 插件类别 | `class: cosmetic` · `scope: ["personal"]` · `permissions: ["assets.override", "assets.add"]`（`operator-skin-select/plugin.json`；`assets.add` 用于安装清单里还没有的召唤物条目，见 §9.8） |
 | 单包上限 | **512 MiB（536,870,912 字节）**（`class: cosmetic` 自己的上限；其他类别仍是 200 MiB），另加 5000 个文件、单个 JSON 8 MB（主项目 `shared/plugins/manifest.js` 的 `PLUGIN_CLASSES.cosmetic.bytes` / `pluginByteLimit`） |
 
 服务器只需要最终的插件文件夹：**提取器跟着本仓库走，不并进主项目**。
@@ -90,7 +90,7 @@ node deploy.mjs --server "E:\Stronghold-Protocol" \
 | --- | --- | --- | --- | --- |
 | 1 | 找到客户端 | `--game` > `.deploy/state.json` 的上次记录 > 常见路径探测；数 `<game>/skinpack/*.ab` | 无（只在 `.deploy/state.json` 里记下路径） | 总是执行 |
 | 2 | 确保 Python 环境 | 探 `<server>/.venv-extract`（Windows 下 `Scripts\python.exe`）能不能 `import UnityPy, lz4, PIL`；不能就 `python -m venv` + `pip install -r extract/requirements.txt` | `<server>/.venv-extract/`（主项目 `.gitignore` 的 `.venv*/` 已挡住） | venv 在且三个依赖都能 import → 跳过 |
-| 3 | 跑皮肤提取 | `extract/skins.py --data-root <server> --game <game> --out <server>/public/assets/local --manifest <server>/data/local-assets.json`；`tools/skin-library/library-index.json` 不存在时先跑 `--only library`，再跑 `--only skins` | 美术：`public/assets/local/spine/op/<charId>/<stem>/{front,back}/<stem>.{skel,atlas,png}`、`spine/op/<charId>/<stem>/illust.*`、`library/{opavatar,opportrait,opillust}/<id>/image.png`；元数据：`data/local-assets.json`、`data/skins-local.json`、`data/library-index.json`、`tools/assets/local-skin-index.json`、`tools/assets/local-skins-meta.json`、`tools/skin-library/library-index.json` | 提取"够用"**且客户端与上次相同** → 跳过（判定条件见 §3.3）。`--force` 重跑；**`--force-build` 一律不跑**（不完整就直接退出 2） |
+| 3 | 跑皮肤提取 | `extract/skins.py --data-root <server> --game <game> --out <server>/public/assets/local --manifest <server>/data/local-assets.json`；`tools/skin-library/library-index.json` 不存在时先跑 `--only library`，再跑 `--only skins`；随后 `extract/token_skins.py --data-root <server> --game <game> --out <server>/public/assets/local --manifest <server>/data/token-skins-local.json` | 美术：`public/assets/local/spine/op/<charId>/<stem>/{front,back}/<stem>.{skel,atlas,png}`、`spine/op/<charId>/<stem>/illust.*`、`library/{opavatar,opportrait,opillust}/<id>/image.png`、**召唤物皮肤** `spine/token-skin/<tokenId>/<stem>/{front,back}/…` + `avatar.png`；元数据：`data/local-assets.json`、`data/skins-local.json`、`data/library-index.json`、`data/token-skins-local.json`、`tools/assets/local-skin-index.json`、`tools/assets/local-skins-meta.json`、`tools/skin-library/library-index.json` | 提取"够用"**且客户端与上次相同** → 跳过（判定条件见 §3.3）。`--force` 重跑；**`--force-build` 一律不跑**（不完整就直接退出 2） |
 | 4 | 生成目录表 | `tools/skin-catalogue.py --out <repo>/data/skin-table.json [--local-catalogue <repo>/catalogue/skins.json] [--skins-meta <server>/data/skins-local.json] [--skin-index <server>/tools/assets/local-skin-index.json] [--skin-table <server>/.cache/gamedata/excel/skin_table.json]`——方括号里这几个参数**只在文件存在时才传**，缺的打印警告后略过（§9.6） | `<repo>/data/skin-table.json`（本机 273 个 skinId / 273 个有名字；只用仓库目录表时同样 273/273） | 输出比所有来源新、且来源签名（路径 + 秒级 mtime）没变 → 跳过 |
 | 5 | 构建插件 | `tools/build-plugin.py --server <server> --out <repo>/operator-skin-select --split auto --split-target 500 --images all --illust-format webp --illust-quality 85 --illust-method 5`（`--illust none` 时改成 `--images small`） | `<repo>/operator-skin-select/`（超过目标才会再出 `-2`、`-3` …，各自 `plugin.json` + `assets.json`），以及 `<repo>/data/build-report.json` | 报告比 `build-plugin.py` 与目录表新、签名一致、且报告里的包都还在 → 跳过 |
 | 6 | pack（每个包各算） | `node <server>/tools/plugin.mjs pack <包目录>` | 每个包的 `plugin.lock.json`（模型剪辑数据 + 每个文件的 SHA-256） | 该包 `plugin.lock.json` 比 `assets.json`/`plugin.json` 新且签名一致 → 跳过 |
@@ -107,6 +107,9 @@ node deploy.mjs --server "E:\Stronghold-Protocol" \
 * **venv**：能不能 import（第 2 步）；
 * **提取**：`spine/op` 里有模型目录、`library/{opavatar,opportrait,opillust}` 三层都非空、
   `data/local-assets.json` 里以 `spine/op/` 开头的组数 > 100、`tools/skin-library/library-index.json` 存在（第 3 步）；
+  召唤物皮肤另算：`data/token-skins-local.json` 缺或计数为 0、而干员提取已完整时，第 3 步只补跑
+  `extract/token_skins.py`，不重写干员那批产物；缺官方 gamedata 表时跳过召唤物皮肤并打印警告；
+* **构建签名**：包含 `data/token-skins-local.json` 的 mtime（第 5 步），所以补提取后一定会重建插件；
 * **客户端换没换**：`.deploy/state.json` 里上次记的路径与这一次比（第 3 步，见下）；
 * **每一步的输入签名**：存在 `<repo>/.deploy/state.json`（第 4~6、8 步）；
 * **mtime**：`plugin.lock.json` 是否比 `assets.json` 新（第 6 步）、`plugins/<id>` 与构建产物是否逐字节同源（第 8 步）。
@@ -197,6 +200,8 @@ node deploy.mjs --server "E:\Stronghold-Protocol" --force-build --yes
 | `--illust-method 0..6` | `5` | WebP 的 Pillow method |
 | `--jobs N` | `min(4, CPU)` | 立绘转码的并行进程数（`concurrent.futures.ProcessPoolExecutor`，1 = 不并行） |
 | `--link auto\|hard\|copy` | `auto` | 素材落地：优先同卷硬链接，失败则复制（**从不写源目录**） |
+| `--token-skins-meta <文件>` | `<server>/data/token-skins-local.json` | 召唤物皮肤元数据（`extract/token_skins.py` 的产物）；文件不存在时构建不带召唤物皮肤 |
+| `--no-token-skins` | 关 | 不把召唤物皮肤收进插件（只出干员皮肤） |
 | `--skin-index <文件>` | `<main>/tools/assets/local-skin-index.json` | 提取器写的 `byStem: stem → skinId` |
 | `--skins-meta <文件>` | `<main>/data/skins-local.json` | 提取器写的名字/分组 |
 | `--skin-table <文件>` | `<main>/.cache/gamedata/excel/skin_table.json` | 官方显示名表（`charSkins[skinId].displaySkin`） |
@@ -219,6 +224,23 @@ node deploy.mjs --server "E:\Stronghold-Protocol" --force-build --yes
 | `--library-tier avatar\|portrait\|illust` | 三层都提 | 只提图库的这些层（可重复） |
 | `--print-jobs` | — | 打印上游完整 job 表（调试用）并退出 |
 | `--dry-run` | 关 | 只打印路径与参数 |
+
+### 4.3b `extract/token_skins.py`（召唤物皮肤）
+
+本仓库自己的入口（不修改上游 `extract/extract.py` 的拷贝）：读客户端 `skinpack/token_<tokenId>.ab` 的每个
+token 皮肤 prefab，按 prefab 取它指向的 SkeletonDataAsset（不按骨架名匹配），`facings_of` 分正/背面，
+写 `spine/token-skin/<tokenId>/<stem>/{front,back}/…` 与 `avatar.png`，并把主人皮肤 id（官方
+`tokenSkinMap`）写进元数据。
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `--data-root <目录>` | 必填 | 服务器检出：官方表 `.cache/gamedata/excel/skin_table.json`、默认 `--out` 与元数据都从这里推 |
+| `--game <目录>` | 必填 | 客户端 AssetBundle 根目录（用合并视图 `…\Windows__merged` 才能拿到热更里的皮肤） |
+| `--out <目录>` | `<data-root>/public/assets/local` | 美术输出目录 |
+| `--manifest <文件>` | `<data-root>/data/token-skins-local.json` | 元数据（`tokens[tokenId].skins[宿主 skinId] = { stem, name, group }`） |
+| `--token <tokenId>` | 不给 = 全部 | 只提这些 token（可重复） |
+| `--no-avatars` | 关 | 不提 180×180 头像，只出模型 |
+| `--dry-run` | 关 | 只打印计划，不写文件 |
 
 ### 4.4 目录表与基准工具
 
@@ -353,6 +375,9 @@ python tools/local-catalogue.py --out catalogue/skins.json \
 # 第一次：先图库（写 tools/skin-library/library-index.json），再皮肤
 python extract/skins.py --server "<服务器检出>" --game "<AB 根>" --only library
 python extract/skins.py --server "<服务器检出>" --game "<AB 根>" --only skins
+
+# 召唤物皮肤（token skins）：主人皮肤来自官方 tokenSkinMap
+python extract/token_skins.py --data-root "<服务器检出>" --game "<AB 根>"
 
 # 只验一套 / 看上游完整 job 表
 python extract/skins.py --server "<服务器检出>" --game "<AB 根>" --only skins --skin char_1012_skadi2_boc_4
@@ -578,6 +603,25 @@ python extract/skins.py --server <检出> --game "<…>/AB/Windows__merged" --on
   还没收录这几套时用它；§6）。名字与清单都在插件仓库这一侧生成，主项目那边不出皮肤表。
 - 顺序仍是先 `library` 再 `skins`（§3.3）：皮肤枚举来自上次 library 写下的索引。
 
+### 9.8 召唤物（token）皮肤
+
+外观插件的皮肤记录一直只写 `chars[charId].skins[skinId]`（干员）。第 3 步会跑 `extract/token_skins.py`，
+第 5 步把它写成 `tokens[tokenId].skins[主人皮肤 id]`；主人关系来自官方 `skin_table.json` 的 `tokenSkinMap`。
+素材在客户端 `skinpack/token_<tokenId>.ab` 里（每个皮肤一个 prefab）；服务端的运行时支持见主项目
+`docs/PLUGINS.md` §9。干员提取已完整、只缺召唤物皮肤时，第 3 步只补跑 token 提取。
+
+- **覆盖率**：官方 `tokenSkinMap`（本机 2026-10-24 快照：67 套 / 82 条 / 54 个 token）里，能提出模型的是
+  **80 套 / 52 个 token**；`token_10039_ulpia_block_epoque#48`（乌尔比安「注目深渊」的从不混淆的方向）与
+  `token_10055_phatm2_mndclv_sightseer#4`（酒神「真我自扼」的迷狂牢笼）在客户端里是**空 prefab**——没有骨架、
+  贴图或头像，游戏里靠标记/特效表现，跳过是正常的。
+- **按 prefab 取，不按骨架名**：`token_10000_silent_healrb_sweep#1` 的 prefab 指向基数骨架
+  `token_10000_silent_healrb`、`_winter#1` 指向 `_winter#2`；按骨架名扫会漏掉赫默这两套。
+- **头像**：取自客户端的 `spritepack/ui_char_avatar_*.ab`（180×180）；`library/opillust/token_*` 下的那些
+  "立绘"其实是 Spine 图集页，不要当立绘用。
+- **体积/拆包**：召唤物皮肤约 13 MB，全部放进第 1 个包（拆包仍然只切干员皮肤）；`--no-token-skins` 可以关掉。
+- **旧服务器**：接收方的服务器必须带 `tokens[id].skins` 的运行时支持（主项目 `docs/PLUGINS.md` §9）；
+  没有它的服务器会报 `PLUGIN_ASSET_IGNORED` 警告（只有 `--strict` 才会因此失败）。
+
 ---
 
 ## 10. 不要做
@@ -589,8 +633,8 @@ python extract/skins.py --server <检出> --game "<…>/AB/Windows__merged" --on
 * **不要写 `data/assets.json`**：那是主项目自己的美术清单（跟踪文件）。插件通过 `assets.json` 这个
   **overlay** 覆盖安装里已有的条目，本仓库的构建脚本从不碰主项目的 `data/assets.json`。
 * **不要给插件加 `entry`**：`cosmetic` 类不允许 `entry`（`entry` 只属于 script / ui / trusted），加了会被判
-  problem。清单只要 `class: cosmetic` + `scope: ["personal"]` + `permissions: ["assets.override"]` +
-  `assets: "assets.json"`。
+  problem。清单只要 `class: cosmetic` + `scope: ["personal"]` + `permissions: ["assets.override", "assets.add"]` +
+  `assets: "assets.json"`（`assets.add` 用于安装清单里还没有的召唤物条目，§9.8）。
 * **不要手写 `plugin.lock.json`**：模型的剪辑数据（`anims` / `events` / `hits` / `bounds`）只能由
   `node tools/plugin.mjs pack <包>` 从骨架里解析出来；手写的 lock 会被判 `PLUGIN_LOCK` /
   `PLUGIN_LOCK_STALE`。改了素材就重新 `pack`。

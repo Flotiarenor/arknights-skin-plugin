@@ -23,6 +23,7 @@
   "homepage": "https://github.com/Flotiarenor/arknights-skin-plugin",
   "assets": "assets.json",
   "permissions": [
-    "assets.override"
+    "assets.override",
+    "assets.add"
   ]
 }

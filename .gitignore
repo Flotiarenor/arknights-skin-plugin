@@ -2,6 +2,7 @@
 # operator-skin-select/ 里由 tools/build-plugin.py 生成的素材与生成物留在本机；插件模板 plugin.json 仍留在仓库。
 operator-skin-select/spine/
 operator-skin-select/skin/
+operator-skin-select/token-skin/
 operator-skin-select/assets.json
 operator-skin-select/plugin.lock.json
 

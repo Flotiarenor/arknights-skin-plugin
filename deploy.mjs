@@ -8,7 +8,7 @@
 //                   [--python <解释器>] [--venv <目录>] [--force | --force-build] [--yes] [--dry-run]
 //
 // 九步（每一步先判断是否已完成，已完成就打印"跳过（已存在）"）：
-//   1 找到客户端        2 确保 Python 环境      3 跑皮肤提取（extract/skins.py）
+//   1 找到客户端        2 确保 Python 环境      3 跑皮肤提取（extract/skins.py + extract/token_skins.py）
 //   4 生成目录表        5 构建插件（可能拆成多个包）  6 pack（每个包）
 //   7 check + --strict（每个包）  8 装进 <server>/plugins/（每个包）  9 汇总
 //
@@ -46,6 +46,7 @@ const STATE_DIR = path.join(REPO, '.deploy');
 const STATE_FILE = path.join(STATE_DIR, 'state.json');
 const EXTRACT_PY = path.join(REPO, 'extract', 'extract.py');
 const SKINS_PY = path.join(REPO, 'extract', 'skins.py');
+const TOKEN_SKINS_PY = path.join(REPO, 'extract', 'token_skins.py');
 const REQUIREMENTS = path.join(REPO, 'extract', 'requirements.txt');
 const CATALOGUE_PY = path.join(REPO, 'tools', 'skin-catalogue.py');
 const BUILD_PY = path.join(REPO, 'tools', 'build-plugin.py');
@@ -140,6 +141,13 @@ function countFiles(dir) {
 
 function countDirs(dir) {
   try { return readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).length; } catch { return 0; }
+}
+
+/** data/token-skins-local.json 里的召唤物皮肤总数（没有这个文件就 0）。 */
+function countTokenSkins(file) {
+  const doc = readJson(file);
+  const tokens = doc?.tokens || {};
+  return Object.values(tokens).reduce((n, t) => n + Object.keys(t?.skins || {}).length, 0);
 }
 
 /** 客户端 `skinpack/` 下的干员包数量（`skinpack` 是目录，里面是 `char_003_kalts.ab` 这样的文件）。 */
@@ -436,12 +444,15 @@ function step3(args, state, client, python) {
   const out = path.join(args.server, 'public', 'assets', 'local');
   const manifest = path.join(args.server, 'data', 'local-assets.json');
   const libraryIndex = path.join(args.server, 'tools', 'skin-library', 'library-index.json');
+  const tokenMeta = path.join(args.server, 'data', 'token-skins-local.json');
+  const tokenTable = path.join(args.server, '.cache', 'gamedata', 'excel', 'skin_table.json');
   const opDir = path.join(out, 'spine', 'op');
   const stems = countStems(opDir);
   const manifestJson = readJson(manifest);
   const groups = manifestJson?.groups || {};
   const tiers = ['opavatar', 'opportrait', 'opillust'].map((t) => countDirs(path.join(out, 'library', t)));
   const groupsOk = Object.keys(groups).some((k) => k.startsWith('spine/op/')) && Object.keys(groups).length > 100;
+  const tokenSkins = countTokenSkins(tokenMeta);
   const adequate = stems > 0 && tiers.every((n) => n > 0) && groupsOk && existsSync(libraryIndex);
   const sameGame = !gameChangedFlag;
   if (args.forceBuild) {
@@ -449,24 +460,44 @@ function step3(args, state, client, python) {
     // 所以这里宁可直接退出，也不在"顺手"的名义下把别人的产物覆盖掉。
     if (!adequate) {
       log('提取产物不完整，而 --force-build 不跑提取');
-      log(`  spine/op ${stems} 套、library 头像/半身像/立绘 ${tiers.join('/')}、清单 ${Object.keys(groups).length} 组、`
-        + `图库索引 ${existsSync(libraryIndex) ? '在' : '不在'}，客户端 ${sameGame ? '与上次相同' : '与上次不同'}`);
+      log(`  spine/op ${stems} 套、library 头像/半身像/立绘 ${tiers.join('/')}、召唤物皮肤 ${tokenSkins} 套、` +
+        `清单 ${Object.keys(groups).length} 组、图库索引 ${existsSync(libraryIndex) ? '在' : '不在'}，` +
+        `客户端 ${sameGame ? '与上次相同' : '与上次不同'}`);
       log('  先跑一次不带 --force-build 的部署把提取补齐（那一步会重写 data/skins-local.json，属于 cs，需要服主同意）。');
       process.exit(2);
     }
     if (!sameGame) {
       log(`（客户端与上次不同：上次 ${previous}，这次 ${game}；--force-build 不重跑提取，插件里仍是上次那批美术）`);
     }
-    done(`跳过（--force-build 不重跑提取）：spine/op ${stems} 套、library 头像/半身像/立绘 ${tiers.join('/')}、`
-      + `清单 ${Object.keys(groups).length} 组`, { status: '跳过' });
-    state.steps.extract = { ...(state.steps.extract || {}), forceBuildSkippedAt: new Date().toISOString(), stems, out };
-    return { out, manifest, libraryIndex, stems, ran: false };
+    if (tokenSkins === 0) {
+      log('（还没有召唤物皮肤元数据；--force-build 不补提取，本次构建将不含召唤物皮肤）');
+    }
+    done(`跳过（--force-build 不重跑提取）：spine/op ${stems} 套、library 头像/半身像/立绘 ${tiers.join('/')}、` +
+      `召唤物皮肤 ${tokenSkins} 套、清单 ${Object.keys(groups).length} 组`, { status: '跳过' });
+    state.steps.extract = { ...(state.steps.extract || {}), forceBuildSkippedAt: new Date().toISOString(), stems, tokenSkins, out };
+    return { out, manifest, libraryIndex, stems, tokenSkins, ran: false };
   }
   if (adequate && sameGame && !args.force) {
-    done(`跳过（已存在）：spine/op ${stems} 套、library 头像/半身像/立绘 ${tiers.join('/')}、清单 ${Object.keys(groups).length} 组`,
-      { status: '跳过' });
-    state.steps.extract = { at: new Date().toISOString(), game, stems, out };
-    return { out, manifest, libraryIndex, stems, ran: false };
+    if (tokenSkins === 0) {
+      // 干员提取已经齐了，但还没有召唤物皮肤：只补跑 token 提取，不重写干员的那批产物。
+      const extractGame = extractionRoot(game);
+      log('      干员提取已完整，缺召唤物皮肤：只补跑 extract/token_skins.py');
+      if (args.dryRun) {
+        log(`      $ ${python} "${TOKEN_SKINS_PY}" --data-root ${args.server} --game ${extractGame} --out ${out} --manifest ${tokenMeta}`);
+      } else if (!existsSync(tokenTable)) {
+        log(`      warn 缺官方表 ${tokenTable}：跳过召唤物皮肤（只出干员皮肤）`);
+      } else {
+        run(python, [TOKEN_SKINS_PY, '--data-root', args.server, '--game', extractGame, '--out', out, '--manifest', tokenMeta]);
+      }
+      const tokenAfter = args.dryRun ? 0 : countTokenSkins(tokenMeta);
+      done(`spine/op ${stems} 套（已有）、召唤物皮肤 ${tokenAfter} 套（只补跑）`, { status: '完成' });
+      state.steps.extract = { at: new Date().toISOString(), game, stems, tokenSkins: tokenAfter, out };
+      return { out, manifest, libraryIndex, stems, tokenSkins: tokenAfter, ran: true };
+    }
+    done(`跳过（已存在）：spine/op ${stems} 套、library 头像/半身像/立绘 ${tiers.join('/')}、召唤物皮肤 ${tokenSkins} 套、` +
+      `清单 ${Object.keys(groups).length} 组`, { status: '跳过' });
+    state.steps.extract = { at: new Date().toISOString(), game, stems, tokenSkins, out };
+    return { out, manifest, libraryIndex, stems, tokenSkins, ran: false };
   }
   if (!sameGame) {
     log(`      客户端与上次不同（上次 ${previous}，这次 ${game}），重新提取`);
@@ -474,11 +505,13 @@ function step3(args, state, client, python) {
   if (args.dryRun) {
     const dryGame = extractionRoot(game, { build: false });
     const flags = ['--data-root', args.server, '--game', dryGame, '--out', out, '--manifest', manifest];
+    const tokenFlags = ['--data-root', args.server, '--game', dryGame, '--out', out, '--manifest', tokenMeta];
     if (dryGame !== game) log(`      热更目录会先合成提取视图：${dryGame}`);
     log(`      $ ${python} "${SKINS_PY}" ${flags.join(' ')} --only library`);
     log(`      $ ${python} "${SKINS_PY}" ${flags.join(' ')} --only skins`);
-    done(`（dry-run：将先跑 library、再跑 skins 两趟${adequate ? '' : '；上次的提取不完整'}）`);
-    return { out, manifest, libraryIndex, stems, ran: false };
+    log(`      $ ${python} "${TOKEN_SKINS_PY}" ${tokenFlags.join(' ')}`);
+    done(`（dry-run：将先跑 library、再跑 skins，最后跑 召唤物皮肤${adequate ? '' : '；上次的提取不完整'}）`);
+    return { out, manifest, libraryIndex, stems, tokenSkins, ran: false };
   }
   const extractGame = extractionRoot(game);
   // 上游按磁盘上的图库索引枚举客户端有哪些皮肤，而索引要到那次运行结尾才写：第一次必须分两趟。
@@ -488,12 +521,18 @@ function step3(args, state, client, python) {
     log('      （图库索引已存在：只跑 skins 一趟）');
   }
   run(python, [SKINS_PY, '--data-root', args.server, '--game', extractGame, '--out', out, '--manifest', manifest, '--only', 'skins']);
+  if (!existsSync(tokenTable)) {
+    log(`      warn 缺官方表 ${tokenTable}：跳过召唤物皮肤（只出干员皮肤）`);
+  } else {
+    run(python, [TOKEN_SKINS_PY, '--data-root', args.server, '--game', extractGame, '--out', out, '--manifest', tokenMeta]);
+  }
   const after = countStems(opDir);
   if (!after) { log('提取跑完了但 spine/op 里一套模型都没有 —— 上游没有可枚举的皮肤计划'); process.exit(1); }
   const tiersAfter = ['opavatar', 'opportrait', 'opillust'].map((t) => countDirs(path.join(out, 'library', t)));
-  done(`spine/op ${after} 套、library 头像/半身像/立绘 ${tiersAfter.join('/')}`, { bytes: dirBytes(out) });
-  state.steps.extract = { at: new Date().toISOString(), game, stems: after, out };
-  return { out, manifest, libraryIndex, stems: after, ran: true };
+  const tokenAfter = countTokenSkins(tokenMeta);
+  done(`spine/op ${after} 套、library 头像/半身像/立绘 ${tiersAfter.join('/')}、召唤物皮肤 ${tokenAfter} 套`, { bytes: dirBytes(out) });
+  state.steps.extract = { at: new Date().toISOString(), game, stems: after, tokenSkins: tokenAfter, out };
+  return { out, manifest, libraryIndex, stems: after, tokenSkins: tokenAfter, ran: true };
 }
 
 function step4(args, state) {
@@ -566,10 +605,12 @@ function step5(args, state, python, catalogue) {
     if (args.jobs !== null) argv.push('--jobs', String(args.jobs));
   }
 
+  const tokenMeta = path.join(args.server, 'data', 'token-skins-local.json');
   const sig = signature('build', 'local-only', args.illust, args.illustQuality, args.illustMethod, args.jobs ?? 'auto',
     args.split, args.splitTarget, args.have ? [args.have, Math.round(mtime(args.have))] : 'no-have',
+    existsSync(tokenMeta) ? ['token-skins', Math.round(mtime(tokenMeta))] : 'no-token-skins',
     Math.round(mtime(catalogue)), Math.round(mtime(BUILD_PY)));
-  const fresh = existsSync(REPORT_FILE) && mtime(REPORT_FILE) > Math.max(mtime(BUILD_PY), mtime(catalogue));
+  const fresh = existsSync(REPORT_FILE) && mtime(REPORT_FILE) > Math.max(mtime(BUILD_PY), mtime(catalogue), mtime(tokenMeta));
   if (fresh && state.steps.build?.sig === sig && !args.force && !args.forceBuild) {
     const packages = readPackages();
     if (packages) {

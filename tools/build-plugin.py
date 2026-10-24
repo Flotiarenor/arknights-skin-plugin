@@ -137,7 +137,8 @@ MANIFEST = {
     "license": "见 NOTICE.md（美术版权归 Hypergryph / Yostar，非商业同人用途）",
     "homepage": "https://github.com/Flotiarenor/arknights-skin-plugin",
     "assets": "assets.json",
-    "permissions": ["assets.override"],
+    # assets.override：改写安装清单里已有的条目；assets.add：安装清单里没有的召唤物要整条新增 tokens[id]
+    "permissions": ["assets.override", "assets.add"],
 }
 
 
@@ -244,6 +245,102 @@ def scan_extract(root):
             illust = next((os.path.join(sdir, n) for n in ILLUSTR_NAMES if os.path.isfile(os.path.join(sdir, n))), None)
             out[stem] = Entry(char_id, stem, facings, illust, None, None, None, os.path.join(root, 'spine', 'op'))
     return out
+
+
+def scan_token_extract(root, meta_path):
+    """召唤物皮肤：(data/token-skins-local.json + spine/token-skin/<tokenId>/<stem>/)。
+
+    条目由本仓库的 extract/token_skins.py 生成；模型目录与干员皮肤同形（front/back + 同名 .skel/.atlas/页），
+    另加一个 180×180 的 avatar.png。返回 [{token_id, owner_skin, stem, name, group, facings, avatar}]。
+    """
+    if not meta_path or not os.path.isfile(meta_path):
+        return []
+    data = load_json(meta_path)
+    tokens = data.get('tokens') if isinstance(data, dict) else None
+    out = []
+    for token_id, rec in (tokens or {}).items():
+        if not safe_part(str(token_id)):
+            continue
+        for owner_skin, skin in ((rec or {}).get('skins') or {}).items():
+            stem = str((skin or {}).get('stem') or '')
+            if not stem or not safe_part(stem):
+                continue
+            sdir = os.path.join(root, 'spine', 'token-skin', str(token_id), stem)
+            facings = {}
+            for facing in ('front', 'back'):
+                fdir = os.path.join(sdir, facing)
+                if not os.path.isdir(fdir):
+                    continue
+                names = sorted(os.listdir(fdir))
+                skel = [n for n in names if n.endswith('.skel')]
+                atlas = [n for n in names if n.endswith('.atlas')]
+                pages = pages_of(fdir, stem)
+                if not skel or not atlas or not pages:
+                    continue
+                facings[facing] = {'dir': fdir, 'skel': skel[0], 'atlas': atlas[0], 'pages': pages}
+            if not facings:
+                continue
+            avatar = os.path.join(sdir, 'avatar.png')
+            out.append({'token_id': str(token_id), 'owner_skin': str(owner_skin), 'stem': stem,
+                        'name': (skin.get('name') or ''), 'group': (skin.get('group') or ''),
+                        'facings': facings, 'avatar': avatar if os.path.isfile(avatar) else None,
+                        'bytes': sum(os.path.getsize(os.path.join(f['dir'], n))
+                                     for f in facings.values() for n in [f['skel'], f['atlas']] + f['pages'])
+                        + (os.path.getsize(avatar) if os.path.isfile(avatar) else 0)})
+    return out
+
+
+def add_token_skins(package, items, link, warnings):
+    """把 token 皮肤放进第一个包：复制模型/头像，并合并进 assets.json 的 `tokens`。"""
+    out = package['dir']
+    writer = Writer(link)
+    tokens = {}
+    for item in items:
+        stem = item['stem']
+        for facing, f in sorted(item['facings'].items()):
+            dst_dir = os.path.join(out, 'token-skin', stem, facing)
+
+            def transform(raw):
+                text = raw.decode('utf-8')
+                new, _saw_true, changed = strip_pma(text)
+                return raw if not changed else new.encode('utf-8')
+
+            for name in [f['skel'], f['atlas']] + f['pages']:
+                src = os.path.join(f['dir'], name)
+                dst = os.path.join(dst_dir, name)
+                writer.put(src, dst, transform if name.endswith('.atlas') else None)
+        rec = {}
+        if item['name']:
+            rec['name'] = item['name']
+        if item['group']:
+            rec['group'] = item['group']
+        if item['avatar']:
+            writer.put(item['avatar'], os.path.join(out, 'token-skin', stem, 'avatar.png'))
+            rec['avatar'] = f'token-skin/{stem}/avatar.png'
+        rec['spine'] = {}
+        for facing, f in sorted(item['facings'].items()):
+            rec['spine'][facing] = {
+                'skel': f'token-skin/{stem}/{facing}/{f["skel"]}',
+                'atlas': f'token-skin/{stem}/{facing}/{f["atlas"]}',
+                'textures': [f'token-skin/{stem}/{facing}/{p}' for p in f['pages']],
+            }
+        tokens.setdefault(item['token_id'], {}).setdefault('skins', {})[item['owner_skin']] = rec
+    assets_path = os.path.join(out, 'assets.json')
+    data = load_json(assets_path) if os.path.isfile(assets_path) else {'chars': {}}
+    data['tokens'] = tokens
+    with open(assets_path, 'w', encoding='utf-8', newline='\n') as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=1)
+        fh.write('\n')
+    package['token_skins'] = sum(len(v.get('skins', {})) for v in tokens.values())
+    package['tokens'] = len(tokens)
+    files, total = dir_stats(out)
+    package['files'], package['bytes'] = files, total
+    if package['bytes'] > PLUGIN_BYTES_LIMIT:
+        warnings.append(f'{package["id"]} 加进召唤物皮肤后 {package["bytes"] / 1048576:.1f} MiB，超过插件上限 '
+                        f'{PLUGIN_BYTES_LIMIT // 1048576} MB')
+    else:
+        say(f'  召唤物皮肤全部放在 {package["id"]}（拆包只管干员皮肤）')
+    return tokens
 
 
 # ---- have-集合（可选：想跳过某个外部资料库已提供的集合时才给） ---------------------------------------------------------
@@ -609,7 +706,14 @@ def build(args):
         raise SystemExit(f'找不到提取产物。\n  {hint}\n  找过：{"；".join(extract_candidates)}')
 
     entries = scan_extract(extract)
-    if not entries:
+    # 召唤物皮肤：本仓库 extract/token_skins.py 的产物
+    token_meta = first_file([args.token_skins_meta] if args.token_skins_meta else
+                            ([os.path.join(server, 'data', 'token-skins-local.json')] if server else []))
+    if args.token_skins_meta and not token_meta:
+        raise SystemExit(f'--token-skins-meta {args.token_skins_meta} 不是一个文件')
+    token_items = [] if args.no_token_skins else scan_token_extract(extract, token_meta)
+    token_bytes = sum(i['bytes'] for i in token_items)
+    if not entries and not token_items:
         raise SystemExit(f'{extract} 里没有 spine/op/<charId>/<stem>/ 这样的皮肤目录')
     used = [f'提取 {extract}']
     if not main:
@@ -632,6 +736,8 @@ def build(args):
                         'skinId 退化：有 data/skins-local.json 时从模型文件名反推，否则键=stem')
     if not meta_path and not table_path:
         warnings.append('找不到 data/skins-local.json 与官方 skin_table.json —— name/group 留空')
+    if token_items and not (index_path and meta_path):
+        warnings.append('缺目录表/提取元数据：干员皮肤键可能退化为 stem，而召唤物键总是官方 skin id，两者可能对不上')
 
     # have-集合：**只在显式给了 --have 时才有**（想跳过某个外部资料库已提供的集合时才用）。
     have = have_source = None
@@ -758,7 +864,8 @@ def build(args):
         if want < 1:
             raise SystemExit(f'--split {want} 至少是 1')
     # 每个包除了素材还有 plugin.json + assets.json + plugin.lock.json：留出固定余量再切。
-    count, worst, bounds = choose_split([i['size'] for i in chosen], want, max(1, target - PACK_OVERHEAD_FIXED))
+    count, worst, bounds = choose_split([i['size'] for i in chosen], want,
+                                        max(1, target - PACK_OVERHEAD_FIXED - (token_bytes if token_items else 0)))
     groups = [chosen[a:b] for a, b in bounds] if bounds else [chosen]
     if count > 1 and worst > target:
         warnings.append(f'拆成 {count} 个包后最大的包仍约 {worst / 1048576:.1f} MiB，超过目标 '
@@ -775,7 +882,7 @@ def build(args):
     illust_out_bytes = 0
     for index, group in enumerate(groups, 1):
         out = base_out if index == 1 else f'{base_out}-{index}'
-        clear(out, ('spine', 'skin', 'assets.json', 'plugin.lock.json'))
+        clear(out, ('spine', 'skin', 'token-skin', 'assets.json', 'plugin.lock.json'))
         os.makedirs(out, exist_ok=True)
         writer = Writer(args.link)
         chars = {}
@@ -842,6 +949,9 @@ def build(args):
                          'files': files, 'bytes': total, 'estimated': sum(i['size'] for i in group),
                          'stems': [i['entry'].stem for i in group]})
 
+    tokens_added = {}
+    if token_items and packages:
+        tokens_added = add_token_skins(packages[0], token_items, args.link, warnings)
     if staging and os.path.isdir(staging):
         shutil.rmtree(staging, ignore_errors=True)
     removed = prune_stale_packages(base_out, {p['dir'] for p in packages})
@@ -858,6 +968,9 @@ def build(args):
     say(f'  素材来源：{"；".join(used)}')
     say(f'  收录 {skins_all} 套 / {len({i["entry"].char_id for i in chosen})} 个干员 / {grand_files} 个文件 / '
         f'{grand_bytes / 1048576:.1f} MiB')
+    if tokens_added:
+        token_skin_count = sum(len(v.get('skins', {})) for v in tokens_added.values())
+        say(f'  召唤物皮肤 {token_skin_count} 套 / {len(tokens_added)} 个 token（按主人皮肤 id 写 tokens[id].skins）')
     say(f'  键：skinId（目录表 {keys["index"]}，文件名反推 {keys["meta"]}，退化 stem {keys["stem"]}）；路径：stem')
     say(f'  图片：{mode}（头像 {sum(1 for i in chosen if i["avatar"])}，半身像 {sum(1 for i in chosen if i["portrait"])}，'
         f'立绘 {sum(1 for i in chosen if i["illust_dst"])}）')
@@ -907,6 +1020,8 @@ def build(args):
         'at': time.strftime('%Y-%m-%dT%H:%M:%S'),
         'extract': extract,
         'skins': skins_all,
+        'token_skins': sum(len(v.get('skins', {})) for v in tokens_added.values()),
+        'tokens': len(tokens_added),
         'files': grand_files,
         'bytes': grand_bytes,
         'split': args.split,
@@ -955,6 +1070,9 @@ def main(argv):
     ap.add_argument('--jobs', type=int, default=None, metavar='N',
                     help=f'立绘转码的并行进程数（默认 min(4, CPU) = {WEBP_JOBS}；1 = 不并行）')
     ap.add_argument('--link', choices=('auto', 'hard', 'copy'), default='auto', help='素材落地方式（默认同卷硬链接，失败则复制）')
+    ap.add_argument('--token-skins-meta', help='召唤物皮肤元数据（默认 <server>/data/token-skins-local.json）')
+    ap.add_argument('--no-token-skins', action='store_true',
+                    help='不把召唤物皮肤（extract/token_skins.py 的产物）收进插件')
     ap.add_argument('--main', help='主项目检出（目录表与官方表从这里读）')
     ap.add_argument('--skin-index', help='tools/assets/local-skin-index.json 的位置')
     ap.add_argument('--skins-meta', help='data/skins-local.json 的位置')
