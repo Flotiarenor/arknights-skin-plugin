@@ -562,19 +562,20 @@ python tools/skin-catalogue.py --out data/skin-table.json --local-catalogue cata
 （2026-10-24 的国家图书馆联动三套就是这么漏的：黍「源远流长」、烛煌「夜行烛火」、琳琅诗怀雅「盛世之象」，
 skinId 都是 `@nlc#1`）。
 
-先做一份合并视图（硬链接，不复制素材；同一卷上几乎不占空间），再让提取器和 deploy 读它：
+**deploy.mjs 第 3 步自动处理**：发现 `<Arknights_Data>/PersistentData/Bundles` 就先调
+`tools/merge-bundles.mjs` 合成 `<AB 根>__merged`（硬链接，不复制素材），再让提取器读这份视图；没有热更目录、
+或本次不跑提取（`--force-build`）时什么都不做。手动跑提取器时才需要自己先合并：
 
 ```bash
 node tools/merge-bundles.mjs --ab "<…>/Arknights_Data/StreamingAssets/AB/Windows"
 # 默认输出 <…>/AB/Windows__merged：热更文件覆盖同名的基础文件
 python extract/skins.py --server <检出> --game "<…>/AB/Windows__merged" --only library
 python extract/skins.py --server <检出> --game "<…>/AB/Windows__merged" --only skins
-node deploy.mjs --server <检出> --game "<…>/AB/Windows__merged" --force-build --yes
 ```
 
 - 合并是"基础 + 热更"，热更同名文件覆盖基础；输出在另一卷时退回复制（慢、占空间），所以默认放在 AB 根旁边。
 - 新皮肤的**名字**由官方 gamedata 快照补：`tools/local-catalogue.py --official-table`（`--official-names`
-  还没收录这几套时用它；§6）。
+  还没收录这几套时用它；§6）。名字与清单都在插件仓库这一侧生成，主项目那边不出皮肤表。
 - 顺序仍是先 `library` 再 `skins`（§3.3）：皮肤枚举来自上次 library 写下的索引。
 
 ---

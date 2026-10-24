@@ -54,6 +54,7 @@ const OUT_DIR = path.join(REPO, 'operator-skin-select');
 const CATALOGUE_LOCAL = path.join(REPO, 'catalogue', 'skins.json');
 const CATALOGUE_OUT = path.join(REPO, 'data', 'skin-table.json');
 const REPORT_FILE = path.join(REPO, 'data', 'build-report.json');
+const MERGE_TOOL = path.join(REPO, 'tools', 'merge-bundles.mjs');
 
 // 客户端 AB 根目录的常见位置（--game > 上次记录 > 这里）。
 const GAME_CANDIDATES = [
@@ -409,6 +410,26 @@ function step2(args, state) {
   return venvPython;
 }
 
+/** 客户端的热更目录：`<Arknights_Data>/PersistentData/Bundles`，与 StreamingAssets 同级（AB/Windows 往上三层）。 */
+function hotUpdateDir(game) {
+  return path.join(path.dirname(path.dirname(path.dirname(game))), 'PersistentData', 'Bundles');
+}
+
+/**
+ * 提取器只接受一个 AB 根，而客户端运行时是"热更目录优先、再读基础树"：只在热更里的皮肤（联动款）
+ * 只有合成一份视图才提得到（tools/merge-bundles.mjs，硬链接，不复制素材）。没有热更目录就原样返回。
+ * `build: false` 只算路径、不落盘（dry-run 用）。
+ */
+function extractionRoot(game, { build = true } = {}) {
+  const hot = hotUpdateDir(game);
+  if (game.endsWith('__merged') || !existsSync(hot) || !readdirSync(hot).length) return game;
+  const merged = `${game}__merged`;
+  if (!build) return merged;
+  log(`      热更目录 ${hot}：先合成提取视图 ${merged}`);
+  run(process.execPath, [MERGE_TOOL, '--ab', game, '--out', merged]);
+  return merged;
+}
+
 function step3(args, state, client, python) {
   step(3, STEP_NAMES[2]);
   const { game, previous, changed: gameChangedFlag } = client;
@@ -451,19 +472,22 @@ function step3(args, state, client, python) {
     log(`      客户端与上次不同（上次 ${previous}，这次 ${game}），重新提取`);
   }
   if (args.dryRun) {
-    const flags = ['--data-root', args.server, '--game', game, '--out', out, '--manifest', manifest];
+    const dryGame = extractionRoot(game, { build: false });
+    const flags = ['--data-root', args.server, '--game', dryGame, '--out', out, '--manifest', manifest];
+    if (dryGame !== game) log(`      热更目录会先合成提取视图：${dryGame}`);
     log(`      $ ${python} "${SKINS_PY}" ${flags.join(' ')} --only library`);
     log(`      $ ${python} "${SKINS_PY}" ${flags.join(' ')} --only skins`);
     done(`（dry-run：将先跑 library、再跑 skins 两趟${adequate ? '' : '；上次的提取不完整'}）`);
     return { out, manifest, libraryIndex, stems, ran: false };
   }
+  const extractGame = extractionRoot(game);
   // 上游按磁盘上的图库索引枚举客户端有哪些皮肤，而索引要到那次运行结尾才写：第一次必须分两趟。
   if (!existsSync(libraryIndex)) {
-    run(python, [SKINS_PY, '--data-root', args.server, '--game', game, '--out', out, '--manifest', manifest, '--only', 'library']);
+    run(python, [SKINS_PY, '--data-root', args.server, '--game', extractGame, '--out', out, '--manifest', manifest, '--only', 'library']);
   } else {
     log('      （图库索引已存在：只跑 skins 一趟）');
   }
-  run(python, [SKINS_PY, '--data-root', args.server, '--game', game, '--out', out, '--manifest', manifest, '--only', 'skins']);
+  run(python, [SKINS_PY, '--data-root', args.server, '--game', extractGame, '--out', out, '--manifest', manifest, '--only', 'skins']);
   const after = countStems(opDir);
   if (!after) { log('提取跑完了但 spine/op 里一套模型都没有 —— 上游没有可枚举的皮肤计划'); process.exit(1); }
   const tiersAfter = ['opavatar', 'opportrait', 'opillust'].map((t) => countDirs(path.join(out, 'library', t)));
