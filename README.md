@@ -42,7 +42,7 @@ node deploy.mjs --server <服务器检出> --game "<客户端 AB\Windows>" --yes
 
 | | |
 | --- | --- |
-| 仓库里有的 | `deploy.mjs`（一键部署九步）、`extract/`（自带的客户端提取器：`extract.py` / `scenes.py` / `aklz4.py` / `skins.py`）、`tools/build-plugin.py`（构建 + 拆包）、`tools/skin-catalogue.py`（生成目录表）、`tools/local-catalogue.py`（生成随仓库分发的那份目录表）、`tools/bench-webp.py`（WebP 基准）、**`catalogue/skins.json`**（276 套皮肤的纯元数据目录表，见 §6）、`operator-skin-select/plugin.json`（清单模板，构建会覆盖它）、`LICENSE`（GPL-3.0 全文，**只为 `extract/` 而放**，见 §11）、本说明、`NOTICE.md` |
+| 仓库里有的 | `deploy.mjs`（一键部署九步）、`extract/`（自带的客户端提取器：`extract.py` / `scenes.py` / `aklz4.py` / `skins.py`）、`tools/build-plugin.py`（构建 + 拆包）、`tools/merge-bundles.mjs`（基础树 + 热更目录的合并视图，§9.7）、`tools/skin-catalogue.py`（生成目录表）、`tools/local-catalogue.py`（生成随仓库分发的那份目录表）、`tools/bench-webp.py`（WebP 基准）、**`catalogue/skins.json`**（276 套皮肤的纯元数据目录表，见 §6）、`operator-skin-select/plugin.json`（清单模板，构建会覆盖它）、`LICENSE`（GPL-3.0 全文，**只为 `extract/` 而放**，见 §11）、本说明、`NOTICE.md` |
 | 仓库里没有的 | 所有 `.skel` / `.atlas` / `.png`，以及生成物 `assets.json`、`plugin.lock.json`、`data/`、拆出来的 `operator-skin-select*/` 素材目录、`.build-illust-staging/`、`.deploy/`、`dist/`（见 `.gitignore`；`git status --ignored` 可核对） |
 | 素材唯一的来源 | `<服务器检出>/public/assets/local` —— 本机客户端的提取产物。提取里有多少套就收多少套，**没有远程素材库、没有社区 dump、没有"补差"清单** |
 | 插件类别 | `class: cosmetic` · `scope: ["personal"]` · `permissions: ["assets.override"]`（`operator-skin-select/plugin.json`） |
@@ -553,6 +553,29 @@ python tools/skin-catalogue.py --out data/skin-table.json --local-catalogue cata
 
 > 真的什么都没有时（提取元数据没有、仓库目录表也被删了）才会走另一条路：脚本 `没有可读的来源…` 退出（码 1），
 > 这属于仓库被弄坏了，不是机器缺提取产物。
+
+### 9.7 新皮肤（联动款）在客户端里，但提取出来没有
+
+官方客户端把资产分两层：`StreamingAssets/AB/Windows`（安装时的那份）和
+`Arknights_Data/PersistentData/Bundles`（游戏内热更下载的那份，Unity 的 persistentDataPath）。运行时先读热更、
+再读基础树；而 `extract/skins.py` 只接受**一个** AB 根，所以只提基础树会漏掉只在热更里的皮肤
+（2026-10-24 的国家图书馆联动三套就是这么漏的：黍「源远流长」、烛煌「夜行烛火」、琳琅诗怀雅「盛世之象」，
+skinId 都是 `@nlc#1`）。
+
+先做一份合并视图（硬链接，不复制素材；同一卷上几乎不占空间），再让提取器和 deploy 读它：
+
+```bash
+node tools/merge-bundles.mjs --ab "<…>/Arknights_Data/StreamingAssets/AB/Windows"
+# 默认输出 <…>/AB/Windows__merged：热更文件覆盖同名的基础文件
+python extract/skins.py --server <检出> --game "<…>/AB/Windows__merged" --only library
+python extract/skins.py --server <检出> --game "<…>/AB/Windows__merged" --only skins
+node deploy.mjs --server <检出> --game "<…>/AB/Windows__merged" --force-build --yes
+```
+
+- 合并是"基础 + 热更"，热更同名文件覆盖基础；输出在另一卷时退回复制（慢、占空间），所以默认放在 AB 根旁边。
+- 新皮肤的**名字**由官方 gamedata 快照补：`tools/local-catalogue.py --official-table`（`--official-names`
+  还没收录这几套时用它；§6）。
+- 顺序仍是先 `library` 再 `skins`（§3.3）：皮肤枚举来自上次 library 写下的索引。
 
 ---
 
