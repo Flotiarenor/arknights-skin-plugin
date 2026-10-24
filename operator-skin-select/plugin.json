@@ -2,12 +2,12 @@
   "manifest": 2,
   "id": "operator-skin-select",
   "name": {
-    "zh": "干员皮肤选择插件（1/3）",
-    "en": "Operator skin selection (1/3)"
+    "zh": "干员皮肤选择插件",
+    "en": "Operator skin selection"
   },
   "description": {
-    "zh": "干员皮肤素材：Spine 战斗模型（正/背面）+ 头像 + 半身像 + 立绘——全部来自本机客户端的提取产物。由使用者提取后本地构建，不随仓库或发布包分发。纯外观插件：服主安装，每个玩家在自己的浏览器里开启；没开启的人看到的是默认，包括看别人的。不改任何对局。（插件单包上限 200 MB，全部皮肤拆成 3 个包，这是第 1 个，装 97 套。）",
-    "en": "Operator skin assets: Spine battle models (front/back) + avatars + portraits + illustrations — all extracted from the local client. Built locally by the user after extracting them; never shipped with the repository or a release package. Cosmetic only: the server owner installs it, each player switches it on in their own browser; without it everything is the default, other players included. (One plugin folder may hold 200 MB, so all skins are split into 3 packages; this is package 1 of 3, 97 skins.)"
+    "zh": "干员皮肤素材：Spine 战斗模型（正/背面）+ 头像 + 半身像 + 立绘——全部来自本机客户端的提取产物。由使用者提取后本地构建，不随仓库或发布包分发。纯外观插件：服主安装，每个玩家在自己的浏览器里开启；没开启的人看到的是默认，包括看别人的。不改任何对局。",
+    "en": "Operator skin assets: Spine battle models (front/back) + avatars + portraits + illustrations — all extracted from the local client. Built locally by the user after extracting them; never shipped with the repository or a release package. Cosmetic only: the server owner installs it, each player switches it on in their own browser; without it everything is the default, other players included."
   },
   "version": "0.1.1",
   "app": ">=0.3.0 <0.4.0",

@@ -1,7 +1,8 @@
 """从本机客户端的提取产物构建干员皮肤外观插件（manifest 2）——素材不进仓库。
 
 **唯一的素材来源是本机客户端的提取产物**（`public/assets/local`）：提取里有多少套皮肤就收多少套，一套不落。
-插件单包上限是 200 MB（主项目 `PLUGIN_LIMITS.pluginBytes`），所以**默认按体积拆成多个包**（`--split auto`），
+插件单包上限是 512 MB（主项目 `PLUGIN_CLASSES.cosmetic.bytes`，`pluginByteLimit('cosmetic')`）；
+整套素材 382.5 MiB，所以**默认就是单包**（`--split auto`，目标 500 MiB），超过才按体积拆成多个包，
 而不是靠丢掉立绘、跳过某批皮肤来凑数。
 
 为什么是"本地构建"：官方美术（.skel/.atlas/.png）既不能进插件仓库（主项目 docs/PLUGINS.md §1），
@@ -39,9 +40,9 @@ WebP 是有损重编码，画质与体积由 `--illust-quality`（默认 85）�
 默认 5）权衡；`--jobs` 用多进程并行转码（默认 min(4, CPU) 个 worker）。实测数据见 README §4。
 
 **拆分**：`--split auto`（默认）按 skin 键排序后做"最小化最大包"的连续切分，目标每包 ≤ `--split-target`
-（默认 190 MiB，给 200 MB 硬上限留余量）。产出 <out>、<out>-2、<out>-3 …，每个文件夹有自己的 plugin.json
-（id 依次 operator-skin-select、operator-skin-select-2 …；显示名带（i/n））与自己的素材目录。
-`--split 1` 就是单包（id 与显示名都不带后缀）。
+（默认 500 MiB，给 512 MB 硬上限留余量；当前整套 382.5 MiB 因此是 1 个包）。超过目标时才产出 <out>、
+<out>-2、<out>-3 …，每个文件夹有自己的 plugin.json（id 依次 operator-skin-select、operator-skin-select-2 …；
+显示名带（i/n））与自己的素材目录。`--split 1` 就是强制单包（id 与显示名都不带后缀）。
 
   python tools/build-plugin.py [--server <服务器检出>] [--extract <local 目录>] [--main <主项目检出>]
                                [--out <插件文件夹>] [--split <n|auto>] [--split-target <MiB>]
@@ -64,10 +65,11 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# 主项目 shared/plugins/manifest.js：PLUGIN_LIMITS.pluginBytes = 200 MB。
-PLUGIN_BYTES_LIMIT = 200 * 1024 * 1024
-# 拆包时每个包的目标上限（给 200 MB 硬上限留余量）；见 --split-target。
-SPLIT_TARGET_MIB = 190
+# 主项目 shared/plugins/manifest.js：PLUGIN_LIMITS.pluginBytes = 200 MB 是默认上限；
+# PLUGIN_CLASSES.cosmetic.bytes = 512 MB（pluginByteLimit('cosmetic')）是外观插件自己的上限。
+PLUGIN_BYTES_LIMIT = 512 * 1024 * 1024
+# 拆包时每个包的目标上限（给 512 MB 硬上限留余量）；见 --split-target。
+SPLIT_TARGET_MIB = 500
 # 每个包除了素材还有 assets.json 与 plugin.lock.json：按每套 8 KB 估算（本机实测约 5.5 KB/套），
 # 另加一个固定余量，免得拆出来的包刚好越过目标。
 PACK_OVERHEAD_PER_SKIN = 8 * 1024
@@ -517,8 +519,8 @@ def package_manifest(base, index, total, count, version):
             'en': f'{MANIFEST["name"]["en"]} ({index}/{total})',
         }
         manifest['description'] = {
-            'zh': f'{DESC_ZH}（插件单包上限 200 MB，全部皮肤拆成 {total} 个包，这是第 {index} 个，装 {count} 套。）',
-            'en': f'{DESC_EN} (One plugin folder may hold 200 MB, so all skins are split into {total} '
+            'zh': f'{DESC_ZH}（插件单包上限 {PLUGIN_BYTES_LIMIT // 1048576} MB，全部皮肤拆成 {total} 个包，这是第 {index} 个，装 {count} 套。）',
+            'en': f'{DESC_EN} (One plugin folder may hold {PLUGIN_BYTES_LIMIT // 1048576} MB, so all skins are split into {total} '
                   f'packages; this is package {index} of {total}, {count} skins.)',
         }
     return manifest
@@ -676,7 +678,7 @@ def build(args):
     # 图片：默认全收（模型 + 头像 + 半身像 + 立绘）；单包上限由 --split 负责。
     mode = args.images
     if mode == 'auto':
-        mode = 'all'   # auto 的旧含义是"按 200 MB 上限砍掉立绘"，现在上限由拆包承担
+        mode = 'all'   # auto 的旧含义是"按旧上限砍掉立绘"，现在上限由拆包承担
     order = {'all': ('avatar', 'portrait', 'illust'), 'small': ('avatar', 'portrait'), 'none': ()}
     keep = list(order[mode])
     if 'illust' in keep and args.illust_format == 'none':
@@ -869,11 +871,11 @@ def build(args):
     say()
     say(f'  {"包":<34}{"套":>5}{"干员":>6}{"文件":>7}{"体积":>12}  check')
     for package in packages:
-        flag = '' if package['bytes'] <= PLUGIN_BYTES_LIMIT else '  ← 超过 200 MB'
+        flag = '' if package['bytes'] <= PLUGIN_BYTES_LIMIT else f'  ← 超过 {PLUGIN_BYTES_LIMIT // 1048576} MB'
         say(f'  {package["id"]:<34}{package["skins"]:>5}{package["chars"]:>6}{package["files"]:>7}'
             f'{package["bytes"] / 1048576:>10.1f} MiB{flag}')
         if package['bytes'] > PLUGIN_BYTES_LIMIT:
-            warnings.append(f'{package["id"]} 体积 {package["bytes"] / 1048576:.1f} MiB 超过插件上限 200 MB，'
+            warnings.append(f'{package["id"]} 体积 {package["bytes"] / 1048576:.1f} MiB 超过插件上限 {PLUGIN_BYTES_LIMIT // 1048576} MB，'
                             f'check 会报 PLUGIN_FILE_SIZE')
     if removed:
         say(f'  已删除上一轮多出来的包：{"，".join(os.path.basename(r) for r in removed)}')
@@ -939,7 +941,7 @@ def main(argv):
     ap.add_argument('--split', default='auto', metavar='n|auto',
                     help='拆成几个包（auto = 默认：按 --split-target 自动定；1 = 不拆，id 与显示名都不带后缀）')
     ap.add_argument('--split-target', type=float, default=SPLIT_TARGET_MIB, metavar='MiB',
-                    help=f'每包的目标上限（默认 {SPLIT_TARGET_MIB} MiB；硬上限是 200 MB，留余量）')
+                    help=f'每包的目标上限（默认 {SPLIT_TARGET_MIB} MiB；外观插件硬上限 {PLUGIN_BYTES_LIMIT // 1048576} MB，留余量）')
     ap.add_argument('--version', default=MANIFEST['version'], help='插件版本（默认 %(default)s）')
     ap.add_argument('--images', choices=('auto', 'all', 'small', 'none'), default='all',
                     help='图片：all 全收（模型 + 头像 + 半身像 + 立绘，默认；auto 是它的旧名），'

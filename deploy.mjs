@@ -4,7 +4,7 @@
 //   node deploy.mjs --server E:\Stronghold-Protocol \
 //                   --game "E:\arknight endfield\...\StreamingAssets\AB\Windows" \
 //                   [--illust none|webp|png] [--illust-quality 85] [--illust-method 5] [--jobs 4] \
-//                   [--split auto|n] [--split-target 190] [--have <文件|ids>] [--catalogue <文件>]... \
+//                   [--split auto|n] [--split-target 500] [--have <文件|ids>] [--catalogue <文件>]... \
 //                   [--python <解释器>] [--venv <目录>] [--force | --force-build] [--yes] [--dry-run]
 //
 // 九步（每一步先判断是否已完成，已完成就打印"跳过（已存在）"）：
@@ -13,7 +13,8 @@
 //   7 check + --strict（每个包）  8 装进 <server>/plugins/（每个包）  9 汇总
 //
 // 素材只有一个来源：**本机客户端的提取产物**（`<server>/public/assets/local`）。提取里有多少套皮肤就收多少套，
-// 一套不落；200 MB 的单包上限由 build-plugin.py 的 `--split` 拆成多个包来满足（`plugins/<id>`、
+// 一套不落；外观插件单包上限 512 MB（主项目 PLUGIN_CLASSES.cosmetic.bytes），整套素材默认就是一个包
+// （`--split auto`、目标 500 MiB），超过目标才由 build-plugin.py 的 `--split` 拆成多个包（`plugins/<id>`、
 // `plugins/<id>-2` …）。这个脚本不下载任何皮肤，也**不看任何 dump / 外部素材树**。
 //
 // 幂等与续跑：判断依据分别是 venv 能不能 import、提取产物的数量与清单、每一步的输入签名（存在 <repo>/.deploy/state.json）、
@@ -260,7 +261,7 @@ async function ask() {
 function parseArgs(argv) {
   const args = {
     server: null, game: null, illust: 'webp', illustQuality: 85, illustMethod: 5, jobs: null,
-    split: 'auto', splitTarget: 190, have: null, catalogue: [],
+    split: 'auto', splitTarget: 500, have: null, catalogue: [],
     python: null, venvDir: null, yes: false, dryRun: false, force: false, forceBuild: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -299,7 +300,7 @@ function parseArgs(argv) {
   if (!(args.illustMethod >= 0 && args.illustMethod <= 6)) { log(`--illust-method 要在 0..6（给的 ${args.illustMethod}）`); process.exit(2); }
   if (args.jobs !== null && !(args.jobs >= 1)) { log(`--jobs 至少是 1（给的 ${args.jobs}）`); process.exit(2); }
   if (args.split !== 'auto' && !/^\d+$/.test(args.split)) { log(`--split 只能是整数或 auto（给的 ${args.split}）`); process.exit(2); }
-  if (!(args.splitTarget > 0 && args.splitTarget <= 200)) { log(`--split-target 要在 1..200 MiB（给的 ${args.splitTarget}）`); process.exit(2); }
+  if (!(args.splitTarget > 0 && args.splitTarget <= 512)) { log(`--split-target 要在 1..512 MiB（给的 ${args.splitTarget}）`); process.exit(2); }
   args.venvDir = path.resolve(args.venvDir || path.join(args.server, '.venv-extract'));
   return args;
 }
