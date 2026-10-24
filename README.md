@@ -42,7 +42,7 @@ node deploy.mjs --server <服务器检出> --game "<客户端 AB\Windows>" --yes
 
 | | |
 | --- | --- |
-| 仓库里有的 | `deploy.mjs`（一键部署九步）、`extract/`（自带的客户端提取器：`extract.py` / `scenes.py` / `aklz4.py` / `skins.py`）、`tools/build-plugin.py`（构建 + 拆包）、`tools/skin-catalogue.py`（生成目录表）、`tools/local-catalogue.py`（生成随仓库分发的那份目录表）、`tools/bench-webp.py`（WebP 基准）、**`catalogue/skins.json`**（273 套皮肤的纯元数据目录表，见 §6）、`operator-skin-select/plugin.json`（清单模板，构建会覆盖它）、`LICENSE`（GPL-3.0 全文，**只为 `extract/` 而放**，见 §11）、本说明、`NOTICE.md` |
+| 仓库里有的 | `deploy.mjs`（一键部署九步）、`extract/`（自带的客户端提取器：`extract.py` / `scenes.py` / `aklz4.py` / `skins.py`）、`tools/build-plugin.py`（构建 + 拆包）、`tools/skin-catalogue.py`（生成目录表）、`tools/local-catalogue.py`（生成随仓库分发的那份目录表）、`tools/bench-webp.py`（WebP 基准）、**`catalogue/skins.json`**（276 套皮肤的纯元数据目录表，见 §6）、`operator-skin-select/plugin.json`（清单模板，构建会覆盖它）、`LICENSE`（GPL-3.0 全文，**只为 `extract/` 而放**，见 §11）、本说明、`NOTICE.md` |
 | 仓库里没有的 | 所有 `.skel` / `.atlas` / `.png`，以及生成物 `assets.json`、`plugin.lock.json`、`data/`、拆出来的 `operator-skin-select*/` 素材目录、`.build-illust-staging/`、`.deploy/`、`dist/`（见 `.gitignore`；`git status --ignored` 可核对） |
 | 素材唯一的来源 | `<服务器检出>/public/assets/local` —— 本机客户端的提取产物。提取里有多少套就收多少套，**没有远程素材库、没有社区 dump、没有"补差"清单** |
 | 插件类别 | `class: cosmetic` · `scope: ["personal"]` · `permissions: ["assets.override"]`（`operator-skin-select/plugin.json`） |
@@ -236,27 +236,27 @@ node deploy.mjs --server "E:\Stronghold-Protocol" --force-build --yes
 
 外观插件（`class: cosmetic`）的文件夹上限是 **512 MiB = 536,870,912 字节**（主项目
 `PLUGIN_CLASSES.cosmetic.bytes`，经 `pluginByteLimit('cosmetic')` 生效；`lang` / `content` / `script` /
-`ui` / `trusted` 仍是 200 MiB），另有 5000 个文件的上限。本机这份提取（273 套皮肤，`--images all
+`ui` / `trusted` 仍是 200 MiB），另有 5000 个文件的上限。本机这份提取（276 套皮肤，`--images all
 --illust-format webp --illust-quality 85 --illust-method 5`）**一个包就装得下**：
 
 | 类别 | 文件数 | 体积 |
 | --- | --- | --- |
-| Spine 骨架 `.skel` | 540 | **198.61 MiB** |
-| Spine 图集页 `.png` | 540 | 72.30 MiB |
-| Spine 图集 `.atlas` | 540 | 5.00 MiB |
-| 头像 `avatar.png` | 273 | 16.71 MiB |
-| 半身像 `portrait.png` | 273 | 33.09 MiB |
-| 立绘 `illust.webp` | 273 | 56.54 MiB |
-| `assets.json` ×1 | 1 | 0.24 MiB |
-| `plugin.lock.json` ×1 | 1 | 1.40 MiB |
+| Spine 骨架 `.skel` | 546 | **201.79 MiB** |
+| Spine 图集页 `.png` | 546 | 73.67 MiB |
+| Spine 图集 `.atlas` | 546 | 5.07 MiB |
+| 头像 `avatar.png` | 276 | 16.91 MiB |
+| 半身像 `portrait.png` | 276 | 33.48 MiB |
+| 立绘 `illust.webp` | 276 | 57.35 MiB |
+| `assets.json` ×1 | 1 | 0.25 MiB |
+| `plugin.lock.json` ×1 | 1 | 1.42 MiB |
 | `plugin.json` ×1 | 1 | 0.00 MiB |
-| **合计** | **2442** | **383.91 MiB** |
+| **合计** | **2469** | **389.93 MiB** |
 
-距离 512 MiB 还有约 128 MiB 余量，所以默认就是**一个包**（`--split auto --split-target 500` 的结果）：
+距离 512 MiB 还有约 122 MiB 余量，所以默认就是**一个包**（`--split auto --split-target 500` 的结果）：
 
 | 包 | 插件 id | 显示名 | 套数 | 包内干员 | 文件 | 体积 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `operator-skin-select` | 干员皮肤选择插件 | 273 | 174 | 2442 | 383.9 MiB |
+| 1 | `operator-skin-select` | 干员皮肤选择插件 | 276 | 174 | 2469 | 389.9 MiB |
 
 `node <服务器检出>/tools/plugin.mjs check <包> --strict` 是 `1 folder(s): 0 problem(s), 0 warning(s)`。
 
@@ -290,7 +290,7 @@ node deploy.mjs --server "E:\Stronghold-Protocol" --force-build --yes
 
 ### 5.4 历史：为什么以前是三个包
 
-主项目在 2026-10 之前只有一个全局上限 **200 MiB**（`PLUGIN_LIMITS.pluginBytes`，`[ASSUMED]`）。这套素材
+主项目在 2026-10 之前只有一个全局上限 **200 MiB**（`PLUGIN_LIMITS.pluginBytes`，`[ASSUMED]`）。当时这套素材（273 套）
 383.9 MiB，**光 `.skel` 就 198.6 MiB**，删掉全部图片也塞不进一个包，所以当时只能按 190 MiB 拆成三包
 （127.3 / 128.3 / 128.3 MiB，97 / 102 / 74 套），代价是玩家必须三个都开，同一干员的皮肤还可能被拆到
 不同包里。
@@ -305,7 +305,7 @@ node deploy.mjs --server "E:\Stronghold-Protocol" --force-build --yes
 
 ## 6. 目录表 `catalogue/skins.json`
 
-这是**唯一随仓库分发的"皮肤数据"**，而且**只有元数据**：273 条
+这是**唯一随仓库分发的"皮肤数据"**，而且**只有元数据**：276 条
 `{ skinId, stem, charId, name, group }` + `source` + `counts`。
 
 ```json
@@ -316,7 +316,7 @@ node deploy.mjs --server "E:\Stronghold-Protocol" --force-build --yes
 | | |
 | --- | --- |
 | 字段 | `skinId`（官方皮肤 id，进 `assets.json` 当 JSON 键）/ `stem`（进插件文件路径，`@ # +` 不能出现在路径里）/ `charId` / `name`（官方显示名）/ `group`（皮肤系列名） |
-| 规模 | 273 条 / 174 个干员；`name`、`group` 各 273/273（`counts`: `named 273`、`grouped 273`、`nameFromExtraction 174`、`nameFromGeneratedList 99`） |
+| 规模 | 276 条 / 174 个干员；`name`、`group` 各 276/276（`counts`: `named 276`、`grouped 276`、`nameFromExtraction 0`、`nameFromGeneratedList 276`） |
 | **不含** | 任何 URL、任何绝对路径、任何 `.png` / `.skel` / `.atlas`（本次核对：三个模式在整个文件里 0 命中；全文件也没有一个反斜杠） |
 | 谁生成 | `tools/local-catalogue.py`（维护者偶尔跑一次），来源记录在文件自己的 `source` 里 |
 | 来源 | 主项目分支 `feat/skins` 的 `tools/assets/local-skin-index.json`（blob `e94200ae`，`byStem: stem → skinId`）＋ 本机 `data/skins-local.json`（未跟踪的提取产物，sha256 `4d39355d…`：`name` / `group` 与 `.skel` 文件名）＋ 该分支的 `data/skins.json`（blob `20fe8937`，由官方 gamedata 生成：提取器解不出显示名的那 99 套的真名从这里补） |
@@ -407,7 +407,7 @@ done
 
 > `skin-catalogue.py` 把 `--skins-meta` / `--skin-index` / `--skin-table` / `--extra` 当**显式路径**：给了但文件
 > 不存在会直接退出（码 1），不会退回"只用仓库目录表"。**给与不给是两回事**：把它们去掉、只写
-> `--local-catalogue catalogue/skins.json`，273 个名字与分组照样全有（本机实测 `count 273 / named 273 /
+> `--local-catalogue catalogue/skins.json`，276 个名字与分组照样全有（本机实测 `count 276 / named 276 /
 > grouped 273`），因为仓库自带的这份表本来就是第一优先来源。
 > `deploy.mjs` 第 4 步按这个规则来：四个来源参数都先 `existsSync` 再传，缺的打印
 > `警告：… 不在，本步只用剩下的来源（N 个）` 然后略过，**不会**再因为少了一个提取产物就整步失败（§9.6）。
@@ -425,17 +425,19 @@ done
 
 ## 8. 体积、立绘与 WebP 取舍
 
-外观插件的上限是 **512 MiB**（`class: cosmetic` 的 `PLUGIN_CLASSES.cosmetic.bytes`）；本机这套 383.9 MiB，默认就是一个包，不超过上限。
+外观插件的上限是 **512 MiB**（`class: cosmetic` 的 `PLUGIN_CLASSES.cosmetic.bytes`）；本机这套 389.9 MiB，默认就是一个包，不超过上限。
 
-| 想要什么 | 命令 | 体积（273 套，本机） |
+| 想要什么 | 命令 | 体积（276 套，本机） |
 | --- | --- | --- |
-| 全部皮肤 + WebP 立绘（默认） | `--images all --illust-format webp` | 383.9 MiB，**1 个包** |
+| 全部皮肤 + WebP 立绘（默认） | `--images all --illust-format webp` | 389.9 MiB，**1 个包** |
 | 不要立绘 | `--images small`（`deploy.mjs --illust none`） | 约 327 MiB（模型 275.9 + 头像 16.7 + 半身像 33.1），1 个包 |
 | 只要模型 | `--images none` | 约 277 MiB（模型 275.9 + 清单），1 个包 |
 
 立绘源图是无损 PNG（本批 273 张共 333.4 MiB），WebP 是**有损重编码**：`quality` 越低体积越小、细节越糊
 （脸、发丝、渐变背景最先看出来）；`method` 是 Pillow 的编码档位（0 最快、6 最慢也最小）。本批 **273 张**立绘、
 `quality 85`、单进程的实测（`tools/bench-webp.py --stems` 指定这 273 张，`--repeat 2` 取最快那次）：
+
+> 下表是加入国家图书馆三套皮肤之前的实测（273 张立绘）；当前批次 276 张，源图 337.9 MiB、WebP 57.35 MiB。
 
 | method | 耗时 | s/张 | 体积 | KB/张 | 相对 method 6 |
 | --- | --- | --- | --- | --- | --- |
@@ -476,7 +478,7 @@ python tools/bench-webp.py --extract "<服务器检出>/public/assets/local" --m
 | 触发 | 上限 | 怎么办 |
 | --- | --- | --- |
 | 整个文件夹超过 512 MiB | 536,870,912 字节（`cosmetic` 类别） | 拆包：`--split-target` 调小（如 `400`）或 `--split 2` 重出包；或降低 `--illust-quality` / 用 `--illust-method 6` |
-| 文件数超过 5000 | 5000 | 同上（本机单包 2442 个，离上限很远） |
+| 文件数超过 5000 | 5000 | 同上（本机单包 2469 个，离上限很远） |
 | 单个 JSON 超过 8 MB | 8 MB | 本机单包的 `assets.json` 是 250 KiB；真超了就是单包套数太多，拆包 |
 
 `check` 的报错里带具体数字（`X MB in all, more than 512 MB`），照它调参数重建即可。
@@ -489,7 +491,7 @@ python tools/bench-webp.py --extract "<服务器检出>/public/assets/local" --m
 python -c "import json;d=json.load(open('catalogue/skins.json',encoding='utf-8'));print([r for r in d['skins'] if r['charId']=='char_102_texas'])"
 ```
 
-`catalogue/skins.json` 里没有这个 `charId`，就是客户端里没有（本仓库的目录表 273 套只覆盖 174 个干员）。
+`catalogue/skins.json` 里没有这个 `charId`，就是客户端里没有（本仓库的目录表 276 套只覆盖 174 个干员）。
 另一种情况只在**你把包拆开了、又没开全**时出现，见 §9.3。
 
 ### 9.3 拆了包却只开了一个，别的包里的皮肤不显示
@@ -538,8 +540,8 @@ python -c "import json;d=json.load(open('catalogue/skins.json',encoding='utf-8')
       $ python tools/skin-catalogue.py --out data/skin-table.json --local-catalogue catalogue/skins.json
 ```
 
-只用仓库自带的 `catalogue/skins.json` 时，实测结果与完整来源**一样**：`273 个 skinId，其中 273 个有名字`、
-分组同样 273/273（§6）。手工复现（`--out` 换成临时文件）：
+只用仓库自带的 `catalogue/skins.json` 时，实测结果与完整来源**一样**：`276 个 skinId，其中 276 个有名字`、
+分组同样 276/276（§6）。手工复现（`--out` 换成临时文件）：
 
 ```bash
 python tools/skin-catalogue.py --out data/skin-table.json --local-catalogue catalogue/skins.json
@@ -609,19 +611,19 @@ python tools/skin-catalogue.py --out data/skin-table.json --local-catalogue cata
 | `node --check deploy.mjs` | 退出 0 |
 | `python -m py_compile tools/*.py extract/skins.py` | 退出 0 |
 | `node deploy.mjs --help` / `python tools/build-plugin.py --help` / `python extract/skins.py --help` / `python tools/skin-catalogue.py --help` / `python tools/local-catalogue.py --help` / `python tools/bench-webp.py --help` | 全部退出 0；§4 的参数与默认值逐条对得上本文 |
-| `node deploy.mjs --server "E:\Stronghold-Protocol" --dry-run --yes` | 第二次跑：**3 步执行 / 6 步跳过**（第 1、7、9 步执行）；1 个包 273 套 / 174 个干员 / 2442 个文件 / 383.9 MiB（第 9 步的汇总表按 `operator-skin-select` 目录里的文件算） |
+| `node deploy.mjs --server "E:\Stronghold-Protocol" --dry-run --yes` | 第二次跑：**3 步执行 / 6 步跳过**（第 1、7、9 步执行）；1 个包 276 套 / 174 个干员 / 2469 个文件 / 389.9 MiB（第 9 步的汇总表按 `operator-skin-select` 目录里的文件算） |
 | 同上，再加 `--game "<另一个 AB 根>"` | **4 步执行 / 5 步跳过**：第 3 步打印 `客户端与上次不同（上次 …，这次 …），重新提取` 并列出将跑的两趟 `extract/skins.py`（这就是 §3.3 那个"换了客户端就重新提取"的判断，本机实测有效） |
 | 同上，再加 `--force-build`（客户端不同） | 第 3 步**仍然不跑**（硬保证），但多打印一行 `（客户端与上次不同：… ；--force-build 不重跑提取，插件里仍是上次那批美术）` |
-| `node "E:\Stronghold-Protocol\tools\plugin.mjs" check operator-skin-select --strict` | `1 folder(s): 0 problem(s), 0 warning(s)`，退出 0；`check` 自己报的文件数是 2440（它数的是清单里引用的文件，与第 9 步的 2442 数法不同） |
+| `node "E:\Stronghold-Protocol\tools\plugin.mjs" check operator-skin-select --strict` | `1 folder(s): 0 problem(s), 0 warning(s)`，退出 0；`check` 自己报的文件数是 2467（它数的是清单里引用的文件，与第 9 步的 2469 数法不同） |
 | `node "E:\Stronghold-Protocol\tools\plugin.mjs" list` | 一个 `operator-skin-select` 在 `cosmetic (loaded)` 下，`unofficial`，体积与文件数如上 |
-| `python tools/local-catalogue.py --out <临时文件> --repo "E:\Stronghold-Protocol" --ref origin/feat/skins` | 退出 0；再生成的 273 条记录与 `counts` 与仓库里这份**完全一致**（只有 `branch` 字符串与可选快照块不同：E 盘检出没有 `.cache/gamedata/excel/skin_table.json`） |
+| `python tools/local-catalogue.py --out <临时文件> --repo "E:\Stronghold-Protocol" --ref origin/feat/skins` | 退出 0；再生成的 276 条记录与 `counts` 与仓库里这份**完全一致**（只有 `branch` 字符串与可选快照块不同：E 盘检出没有 `.cache/gamedata/excel/skin_table.json`） |
 | `python tools/local-catalogue.py … --ref feat/skins` | **退出 1**（该检出只有远程跟踪分支 `origin/feat/skins`；脚本不做 `origin/` 兜底）→ 本文 §6 因此写 `origin/feat/skins`，并说明检出里有同名本地分支时 `--ref feat/skins` 亦可 |
 | `python tools/skin-catalogue.py --out <临时> --local-catalogue catalogue/skins.json --skins-meta <不存在的文件>` | **退出 1**、`--skins-meta …: 不是一个文件`（脚本对显式路径的语义没变） |
-| `python tools/skin-catalogue.py --out <临时> --local-catalogue catalogue/skins.json` | 退出 0；`273 个 skinId，其中 273 个有名字`（`count 273 / named 273 / grouped 273`）——第 4 步在缺提取元数据时就是这么退回来的（§9.6） |
+| `python tools/skin-catalogue.py --out <临时> --local-catalogue catalogue/skins.json` | 退出 0；`276 个 skinId，其中 276 个有名字`（`count 276 / named 276 / grouped 276`）——第 4 步在缺提取元数据时就是这么退回来的（§9.6） |
 | `node deploy.mjs --server "E:\Stronghold-Protocol" --dry-run --yes --force-build`，临时把 `data/skins-local.json` 与 `tools/assets/local-skin-index.json` 挪走 | 第 4 步打印 `警告：… 不在，本步只用剩下的来源（1 个）`，只把 `--local-catalogue` 传给脚本，**不再失败**；两个文件随后放回原处（都是主项目未跟踪的提取产物，`git status` 无变化） |
 | `python tools/bench-webp.py --extract "E:\Stronghold-Protocol\public\assets\local" --stems <273 个 stem> --methods 6,5,4 --jobs 1,4 --repeat 2` | 退出 0；§8 的两张表就是这次 273 张（源图 333.4 MiB）的实测 |
 | 拆包 DP 与穷举对拍（200 组随机输入） | 0 处不一致；`--split auto` 可重复、包数最小、切分连续 |
-| `catalogue/skins.json` 全文件扫描 | 273 条 / 174 干员 / `name`、`group` 各 273；URL、绝对路径、`.png`/`.skel`/`.atlas` 各 0 命中；所有 skinId ≤ 64 字符 |
+| `catalogue/skins.json` 全文件扫描 | 276 条 / 174 干员 / `name`、`group` 各 276；URL、绝对路径、`.png`/`.skel`/`.atlas` 各 0 命中；所有 skinId ≤ 64 字符 |
 | `operator-skin-select/assets.json` 抽查 | JSON 键是 skinId（带 `@`、`#`），文件路径是 stem；文件里没有盘符、没有 `//`、没有 URL |
 | `extract/` 与上游对拍 | `extract.py` / `scenes.py` / `aklz4.py` / `requirements.txt` / `LICENSE-Ark-Unpacker.txt` 的 git blob 与 `origin/feat/skins`（`166ae6c2`）**逐一相同** |
 | `LICENSE` 与主项目 `LICENSE` 对拍 | 文本逐字节相同（674 行 / 35,149 字节；主项目检出那份是 CRLF，本仓库统一 LF，只有换行符不同）——GPL-3.0 全文因此确实随仓库附带（§11） |

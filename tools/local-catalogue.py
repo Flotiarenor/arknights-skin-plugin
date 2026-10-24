@@ -20,7 +20,8 @@
   3. `--official-names` `data/skins.json`（分支 `feat/skins`，由官方 gamedata 生成）
                       → 名字/分组的补齐来源；`skinId` 不在里面就报错。
   4. `--official-table` `.cache/gamedata/excel/skin_table.json`（官方 gamedata 快照，**可选**）
-                      → 只用来核对：`displaySkin.skinName` / `skinGroupName` 必须与第 3 项逐条一致。
+                      → 第 3 项里没有的皮肤（新版本刚加、上游皮肤表还没跟上的那几套）用它补名字与分组；
+                        两边都有的仍逐条核对，`displaySkin.skinName` / `skinGroupName` 必须与第 3 项一致。
 
 用法：
 
@@ -151,7 +152,7 @@ def main(argv):
     ap.add_argument('--skin-index', help=f'磁盘上的 {SKIN_INDEX_PATH}')
     ap.add_argument('--skins-meta', help=f'磁盘上的 {SKINS_META_PATH}（未跟踪的提取产物）')
     ap.add_argument('--official-names', help=f'磁盘上的 {SKINS_JSON_PATH}')
-    ap.add_argument('--official-table', help=f'官方 gamedata 快照（可选，只用来核对）：{OFFICIAL_TABLE_PATH}')
+    ap.add_argument('--official-table', help=f'官方 gamedata 快照（可选；官方表缺套时用它补名字）：{OFFICIAL_TABLE_PATH}')
     args = ap.parse_args(argv)
 
     repo = first_dir([args.repo] if args.repo else list(DEFAULT_MAINS))
@@ -161,7 +162,14 @@ def main(argv):
         raise SystemExit('找不到主项目检出：给 --repo <检出>，或把三个来源都用磁盘路径给全')
 
     index_src, index = load_source('skin-index', args.skin_index, repo, args.ref, SKIN_INDEX_PATH)
-    names_src, names = load_source('official-names', args.official_names, repo, args.ref, SKINS_JSON_PATH)
+    try:
+        names_src, names = load_source('official-names', args.official_names, repo, args.ref, SKINS_JSON_PATH)
+    except SystemExit:
+        # 官方皮肤表（feat/skins 的 data/skins.json）不可用时，--official-table 就是唯一的名字来源
+        table_path = args.official_table or (os.path.join(repo, OFFICIAL_TABLE_PATH) if repo else None)
+        if not (table_path and os.path.isfile(table_path)):
+            raise
+        names_src, names = None, {}
     # 提取产物在主项目里是**未跟踪**的（由 feat/skins 分支的 .gitignore 挡住 data/skins-local.json），只从磁盘读。
     meta_src, meta = load_source('skins-meta', args.skins_meta, None, args.ref, SKINS_META_PATH,
                                  disk_default=os.path.join(repo or '', SKINS_META_PATH),
@@ -197,8 +205,30 @@ def main(argv):
             skin_id = (row or {}).get('id')
             if skin_id:
                 official[str(skin_id)] = (str(char_id), (row.get('name') or '').strip(), (row.get('group') or '').strip())
+    # 3b) 官方 gamedata 快照：官方表还没跟上的新皮肤（刚加入客户端的那几套）用它补名字与分组；
+    #     两个来源都有的，仍以官方表为准，并在下面第 5 步逐条核对。
+    table_src = None
+    table_skins = {}
+    table_path = args.official_table or (os.path.join(repo, OFFICIAL_TABLE_PATH) if repo else None)
+    if table_path and os.path.isfile(table_path):
+        raw_table = read_bytes(table_path)
+        table_src = Source('official-table', os.path.abspath(table_path), raw=raw_table, label=OFFICIAL_TABLE_PATH)
+        table_skins = ((parse_json(raw_table, table_path) or {}).get('charSkins')) or {}
+    filled = 0
+    for skin_id, row in sorted(table_skins.items()):
+        if skin_id in official:
+            continue
+        ds = ((row or {}).get('displaySkin')) or {}
+        name = (ds.get('skinName') or '').strip()
+        group = (ds.get('skinGroupName') or '').strip()
+        if not (name and group):
+            continue
+        official[str(skin_id)] = (str((row or {}).get('charId') or str(skin_id).split('@', 1)[0]), name, group)
+        filled += 1
+    if filled:
+        say(f'官方快照补了 {filled} 套官方表里还没有的皮肤')
     if not official:
-        raise SystemExit(f'{names_src.from_text}: 里没有 chars[charId][].id / name / group')
+        raise SystemExit('官方皮肤表与官方快照都没读到名字（给 --official-names 或 --official-table）')
 
     problems = []
     # 4) 逐条核对：index ↔ 提取元数据 ↔ 官方表
@@ -207,7 +237,7 @@ def main(argv):
             problems.append(f'index 里的 stem {stem} → {skin_id}，但提取元数据里没有这套皮肤')
             continue
         if skin_id not in official:
-            problems.append(f'{skin_id}（stem {stem}）不在官方 gamedata 生成的皮肤表里')
+            problems.append(f'{skin_id}（stem {stem}）在官方皮肤表与官方快照里都没有')
             continue
         char_id, name, group = meta_skins[skin_id]
         if char_id != skin_id.split('@', 1)[0]:
@@ -235,18 +265,13 @@ def main(argv):
             say(f'  …还有 {len(problems) - 40} 条')
         return 1
 
-    # 5) 官方 gamedata 快照（可选）：displaySkin 必须与官方表逐条一致
-    table_src = None
+    # 5) 官方 gamedata 快照（可选）：两边都有的皮肤，displaySkin 必须与官方表逐条一致
     table_checked = 0
-    table_path = args.official_table or (os.path.join(repo, OFFICIAL_TABLE_PATH) if repo else None)
-    if table_path and os.path.isfile(table_path):
-        raw = read_bytes(table_path)
-        table_src = Source('official-table', os.path.abspath(table_path), raw=raw, label=OFFICIAL_TABLE_PATH)
-        char_skins = ((parse_json(raw, table_path) or {}).get('charSkins')) or {}
+    if table_src:
         for skin_id, (_, name, group) in sorted(official.items()):
-            if skin_id not in set(by_stem.values()):
+            if skin_id not in set(by_stem.values()) or skin_id not in table_skins:
                 continue
-            ds = (char_skins.get(skin_id) or {}).get('displaySkin') or {}
+            ds = (table_skins.get(skin_id) or {}).get('displaySkin') or {}
             got = ((ds.get('skinName') or '').strip(), (ds.get('skinGroupName') or '').strip())
             if got != (name, group):
                 problems.append(f'{skin_id}：官方快照 {(got[0], got[1])!r} 与官方表 {(name, group)!r} 不一致')
@@ -287,7 +312,7 @@ def main(argv):
         'skins': skins,
     }
     if table_src:
-        doc['source']['officialSnapshot'] = dict(table_src.record(), role='官方 gamedata 快照：逐条核对 displaySkin.skinName / skinGroupName')
+        doc['source']['officialSnapshot'] = dict(table_src.record(), role='官方 gamedata 快照：官方表缺套时补名字，其余逐条核对 displaySkin.skinName / skinGroupName')
         doc['source']['officialSnapshotChecked'] = table_checked
 
     out = os.path.abspath(args.out)

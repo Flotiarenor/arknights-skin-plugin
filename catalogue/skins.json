@@ -4,48 +4,39 @@
  "generator": "tools/local-catalogue.py",
  "source": {
   "repo": "Stronghold-Protocol",
-  "branch": "feat/skins",
+  "branch": "upstream/dev",
   "files": [
    {
-    "path": "tools/assets/local-skin-index.json",
-    "from": "git feat/skins:tools/assets/local-skin-index.json",
-    "sha256": "4f73ac259c6a954fa8b9c42a943e7ed27618ea253f1ce17df4087b0d11aaed40",
-    "bytes": 16442,
-    "role": "skin-index",
-    "blob": "e94200aef6441ae51eb68769f2ddfe131197b067"
+    "path": "E:/Stronghold-Protocol/tools/assets/local-skin-index.json",
+    "from": "disk",
+    "sha256": "71656ff464f8465d0e9749d13578e72b90e6bad46bedda1224cb44ef631b72db",
+    "bytes": 16598,
+    "role": "skin-index"
    },
    {
     "path": "data/skins-local.json",
     "from": "disk",
-    "sha256": "4d39355d70b30274c2e9a7f3f43122e602ac67229491015ceb957a1caf1125fd",
-    "bytes": 895388,
+    "sha256": "2c0d815be47cd08b53e5b8e271b0b638f5b80ef63b9e3ad62823b125980c04a7",
+    "bytes": 897849,
     "role": "skins-meta"
-   },
-   {
-    "path": "data/skins.json",
-    "from": "git feat/skins:data/skins.json",
-    "sha256": "440520199fcd1a2df2ee3338f1c3d711710504aaaa415c2850d37a672948c5bd",
-    "bytes": 33932,
-    "role": "official-names",
-    "blob": "20fe8937e49586b2073f53c47f5a3d6162de9bc1"
    }
   ],
   "officialSnapshot": {
    "path": ".cache/gamedata/excel/skin_table.json",
    "from": "disk",
-   "sha256": "422068f02ceec652ec61a4e0e3c0d4dec6371f95b9ea31cae3e1267f536b10d5",
-   "bytes": 3825497,
-   "role": "官方 gamedata 快照：逐条核对 displaySkin.skinName / skinGroupName"
+   "sha256": "ccb42bad98b648660c07d302e790f9419bc005c6968b5e07d3ba003c7ea5f05d",
+   "bytes": 3839911,
+   "role": "官方 gamedata 快照：官方表缺套时补名字，其余逐条核对 displaySkin.skinName / skinGroupName"
   },
-  "officialSnapshotChecked": 273
+  "officialSnapshotChecked": 276
  },
  "counts": {
-  "skins": 273,
+  "skins": 276,
   "characters": 174,
-  "named": 273,
-  "grouped": 273,
-  "nameFromExtraction": 174,
-  "nameFromGeneratedList": 99
+  "named": 276,
+  "grouped": 276,
+  "nameFromExtraction": 0,
+  "nameFromGeneratedList": 276
  },
  "skins": [
   {
@@ -252,6 +243,13 @@
    "group": "音律联觉/IV"
   },
   {
+   "skinId": "char_1033_swire2@nlc#1",
+   "stem": "char_1033_swire2_nlc_1",
+   "charId": "char_1033_swire2",
+   "name": "盛世之象",
+   "group": "国家图书馆"
+  },
+  {
    "skinId": "char_1034_jesca2@cfa#1",
    "stem": "char_1034_jesca2_cfa_1",
    "charId": "char_1034_jesca2",
@@ -306,6 +304,13 @@
    "charId": "char_103_angel",
    "name": "野地秘行",
    "group": "生命之地/I"
+  },
+  {
+   "skinId": "char_1040_blaze2@nlc#1",
+   "stem": "char_1040_blaze2_nlc_1",
+   "charId": "char_1040_blaze2",
+   "name": "夜行烛火",
+   "group": "国家图书馆"
   },
   {
    "skinId": "char_1040_blaze2@winter#5",
@@ -761,6 +766,13 @@
    "charId": "char_2025_shu",
    "name": "春日宴",
    "group": "0011制造/XI"
+  },
+  {
+   "skinId": "char_2025_shu@nlc#1",
+   "stem": "char_2025_shu_nlc_1",
+   "charId": "char_2025_shu",
+   "name": "源远流长",
+   "group": "国家图书馆"
   },
   {
    "skinId": "char_2026_yu@nian#12",
