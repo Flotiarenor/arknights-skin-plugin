@@ -8,7 +8,9 @@
   1. 把上游模块的 `ROOT` 与几个 `ROOT` 派生路径**重定基**到 `--data-root`（默认 `--server`）。上游是照
      `<主项目>/tools/local-extract/extract.py` 的位置算 `ROOT = parents[2]` 的，拷贝到 `<插件仓库>/extract/` 之后
      那个推导会落到仓库外面，所以必须在调用前改掉；
-  2. 只接受皮肤 / 图库相关的参数，翻译成上游的 `--only spine/op` / `--only library`。
+  2. 只接受皮肤 / 图库相关的参数，翻译成上游的 `--only spine/op` / `--only library`；
+  3. 把"本项目实际出场的干员"加宽到**每个版本**的名册（基础 `data/` 与 `data/versions/*/`）：上游只读基础那对，
+     非默认版本自带的干员会整套漏提（规程 act3 有 74 个，§9.9）。拷贝的 `extract.py` 仍然逐字节不动。
 
 上游会往 data-root 写这些**元数据**（都不含美术，是本插件构建时的输入）：
 `data/skins-local.json`、`data/library-index.json`、`tools/assets/local-skin-index.json`、
@@ -70,6 +72,48 @@ def rebase(module, root):
         parent.mkdir(parents=True, exist_ok=True)
 
 
+def roster_char_ids(root):
+    """Every operator any shipped version fields: the base pair and each `data/versions/<id>/` pair.
+
+    Upstream's `used_char_ids()` reads only `data/chess.json` + `data/backups.json`. A non-default version ships
+    its own roster — 规程 act3 (data/versions/act3autochess-v3_1/chess.json) fields 74 operators the base data does
+    not list, 慕斯 / 灰喉 / 卡达 among them — so a plan built from the base pair alone silently drops their skins
+    while the client holds them. This widening lives here; the copied `extract/extract.py` stays byte-identical to
+    upstream (NOTICE.md §提取器)."""
+    ids = set()
+
+    def add_chess(path):
+        try:
+            chess = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as e:
+            print(f'warn: {path} unreadable ({e})', file=sys.stderr)
+            return
+        for v in chess.values():
+            if isinstance(v, dict) and v.get('charId'):
+                ids.add(v['charId'])
+
+    def add_backups(path):
+        try:
+            diy = (json.loads(path.read_text(encoding='utf-8')).get('diy') or {})
+        except (OSError, ValueError) as e:
+            print(f'warn: {path} unreadable ({e})', file=sys.stderr)
+            return
+        ids.update(diy.get('ownedPool') or [])
+        for group in (diy.get('prototypes') or {}).values():
+            ids.update(group or [])
+
+    pairs = [(root / 'data/chess.json', root / 'data/backups.json')]
+    versions = root / 'data/versions'
+    if versions.is_dir():
+        for d in sorted(versions.iterdir()):
+            if d.is_dir():
+                pairs.append((d / 'chess.json', d / 'backups.json'))
+    for chess_path, backups_path in pairs:
+        add_chess(chess_path)
+        add_backups(backups_path)
+    return ids
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description='皮肤战斗模型 + 干员图库的提取入口（上游 extract.py 的两条 job）')
     ap.add_argument('--game', help='客户端 AssetBundle 根目录（…/StreamingAssets/AB/Windows）')
@@ -98,6 +142,10 @@ def main(argv):
 
     module = load_upstream()
     rebase(module, data_root)
+    # 上游只读基础 data/chess.json + data/backups.json；非默认版本自带的干员会因此整套漏提（§9.9）。
+    # 在调用侧把出场集合加宽到每个版本的名册，extract/extract.py 的拷贝保持与上游逐字节一致。
+    roster = roster_char_ids(data_root)
+    module.used_char_ids = lambda: set(roster)
 
     upstream_argv = []
     if args.game:
@@ -112,13 +160,11 @@ def main(argv):
     if args.print_jobs:
         upstream_argv += ['--print-jobs']
 
-    # 上游用 data/chess.json 与 data/backups.json 算"本项目实际出场的干员"，没有它们会一套都选不出来
-    # （只有 --skin 显式点名时例外），所以这里先说清楚，而不是让它静默提取 0 套。
-    plan_sources = [data_root / 'data/chess.json', data_root / 'data/backups.json']
-    missing = [str(p) for p in plan_sources if not p.is_file()]
-    if missing and not args.skin and not args.print_jobs:
-        print(f'warn: {"、".join(missing)} 不存在 —— 上游无法枚举干员，皮肤会提取 0 套；'
-              f'用 --skin <stem> 点名，或把 --data-root 指到完整的主项目检出', file=sys.stderr)
+    # 上游用 data/chess.json、data/backups.json 与 data/versions/* 算"本项目实际出场的干员"，都读不到时会一套
+    # 都选不出来（只有 --skin 显式点名时例外），所以这里先说清楚，而不是让它静默提取 0 套。
+    if not roster and not args.skin and not args.print_jobs:
+        print('warn: data/chess.json、data/backups.json 与 data/versions/* 都读不到 —— 上游无法枚举干员，'
+              '皮肤会提取 0 套；用 --skin <stem> 点名，或把 --data-root 指到完整的主项目检出', file=sys.stderr)
     if not args.print_jobs:
         library_index = data_root / 'tools/skin-library/library-index.json'
         if args.only in ('both', 'skins') and not library_index.is_file():
