@@ -4,39 +4,39 @@
  "generator": "tools/local-catalogue.py",
  "source": {
   "repo": "Stronghold-Protocol",
-  "branch": "upstream/dev",
+  "branch": "feat/skins",
   "files": [
    {
     "path": "E:/Stronghold-Protocol/tools/assets/local-skin-index.json",
     "from": "disk",
-    "sha256": "71656ff464f8465d0e9749d13578e72b90e6bad46bedda1224cb44ef631b72db",
-    "bytes": 16598,
+    "sha256": "0b1e0fee1c31b027b542e6b92dde5efb009051c9b0612bb1eb5e946c30d83067",
+    "bytes": 16834,
     "role": "skin-index"
    },
    {
     "path": "data/skins-local.json",
     "from": "disk",
-    "sha256": "2c0d815be47cd08b53e5b8e271b0b638f5b80ef63b9e3ad62823b125980c04a7",
-    "bytes": 897849,
+    "sha256": "b9d5a0d0f4c6021d7edec783623da6bf471fee533a545d820f43fe1c25e849dd",
+    "bytes": 901612,
     "role": "skins-meta"
    }
   ],
   "officialSnapshot": {
    "path": ".cache/gamedata/excel/skin_table.json",
    "from": "disk",
-   "sha256": "ccb42bad98b648660c07d302e790f9419bc005c6968b5e07d3ba003c7ea5f05d",
-   "bytes": 3839911,
+   "sha256": "6391ccc6aed33595ddd419ea154ee156f857dc0f8fbd7f68df36528f615f8920",
+   "bytes": 3937182,
    "role": "官方 gamedata 快照：官方表缺套时补名字，其余逐条核对 displaySkin.skinName / skinGroupName"
   },
-  "officialSnapshotChecked": 276
+  "officialSnapshotChecked": 280
  },
  "counts": {
-  "skins": 276,
-  "characters": 174,
-  "named": 276,
-  "grouped": 276,
+  "skins": 280,
+  "characters": 176,
+  "named": 280,
+  "grouped": 280,
   "nameFromExtraction": 0,
-  "nameFromGeneratedList": 276
+  "nameFromGeneratedList": 280
  },
  "skins": [
   {
@@ -346,6 +346,13 @@
    "charId": "char_1044_hsgma2",
    "name": "一闪极意",
    "group": "0011/飙系列/XI"
+  },
+  {
+   "skinId": "char_1045_svash2@sale#20",
+   "stem": "char_1045_svash2_sale_20",
+   "charId": "char_1045_svash2",
+   "name": "雪覆伦城",
+   "group": "忒斯特收藏/XXII"
   },
   {
    "skinId": "char_1046_sbell2@ambienceSynesthesia#8",
@@ -1377,6 +1384,13 @@
    "group": "时代/XXIV"
   },
   {
+   "skinId": "char_4039_horn@epoque#59",
+   "stem": "char_4039_horn_epoque_59",
+   "charId": "char_4039_horn",
+   "name": "锋光初现",
+   "group": "时代/LIX"
+  },
+  {
    "skinId": "char_4040_rockr@lxh#1",
    "stem": "char_4040_rockr_lxh_1",
    "charId": "char_4040_rockr",
@@ -1559,6 +1573,13 @@
    "group": "时代/XXXIX"
   },
   {
+   "skinId": "char_4098_vvana@epoque#59",
+   "stem": "char_4098_vvana_epoque_59",
+   "charId": "char_4098_vvana",
+   "name": "还愿礼",
+   "group": "时代/LIX"
+  },
+  {
    "skinId": "char_4100_caper@summer#18",
    "stem": "char_4100_caper_summer_18",
    "charId": "char_4100_caper",
@@ -1697,6 +1718,13 @@
    "charId": "char_4151_tinman",
    "name": "相位面容",
    "group": "忒斯特收藏/XII"
+  },
+  {
+   "skinId": "char_4162_cathy@kitchen#5",
+   "stem": "char_4162_cathy_kitchen_5",
+   "charId": "char_4162_cathy",
+   "name": "暖冬教室",
+   "group": "罗德厨房/V"
   },
   {
    "skinId": "char_4163_rosesa@game#7",
