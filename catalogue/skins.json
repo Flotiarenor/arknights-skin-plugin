@@ -9,34 +9,34 @@
    {
     "path": "E:/Stronghold-Protocol/tools/assets/local-skin-index.json",
     "from": "disk",
-    "sha256": "db00f9a5eb21d5d1c1b1407f328d1b11852681a21c771c3583985248465c1c4b",
-    "bytes": 20598,
+    "sha256": "a5e563d47f179a2fab90ed11cc806e789b8b388087d069e363a85ab1df12b531",
+    "bytes": 20718,
     "role": "skin-index"
    },
    {
     "path": "data/skins-local.json",
     "from": "disk",
-    "sha256": "9cb9f05c3bcfcb1306d125493b355e3564bb23b085ae2bc1f83e61fffc203b93",
-    "bytes": 962647,
+    "sha256": "3be05d47951cbafa034fa1ebf94c7afb5f654b66e72d917f3d82bd4e61ea9b26",
+    "bytes": 964541,
     "role": "skins-meta"
    }
   ],
   "officialSnapshot": {
    "path": ".cache/gamedata/excel/skin_table.json",
    "from": "disk",
-   "sha256": "6391ccc6aed33595ddd419ea154ee156f857dc0f8fbd7f68df36528f615f8920",
-   "bytes": 3937182,
+   "sha256": "6bcaa2ade4f6fffb43a5dc3e1aee8ae220c18c177c4f13afcdfd88d57dc2fb14",
+   "bytes": 3945749,
    "role": "官方 gamedata 快照：官方表缺套时补名字，其余逐条核对 displaySkin.skinName / skinGroupName"
   },
-  "officialSnapshotChecked": 345
+  "officialSnapshotChecked": 347
  },
  "counts": {
-  "skins": 345,
-  "characters": 223,
-  "named": 345,
-  "grouped": 345,
+  "skins": 347,
+  "characters": 224,
+  "named": 347,
+  "grouped": 347,
   "nameFromExtraction": 0,
-  "nameFromGeneratedList": 345
+  "nameFromGeneratedList": 347
  },
  "skins": [
   {
@@ -395,6 +395,13 @@
    "charId": "char_1046_sbell2",
    "name": "曙光祝颂",
    "group": "音律联觉/IX"
+  },
+  {
+   "skinId": "char_1047_halo2@striker#4",
+   "stem": "char_1047_halo2_striker_4",
+   "charId": "char_1047_halo2",
+   "name": "暗能质子",
+   "group": "雷神推进者/IV"
   },
   {
    "skinId": "char_107_liskam@nian#2",
@@ -1060,6 +1067,13 @@
    "charId": "char_245_cello",
    "name": "无我唯识",
    "group": "忒斯特收藏/XIII"
+  },
+  {
+   "skinId": "char_248_mgllan@epoque#60",
+   "stem": "char_248_mgllan_epoque_60",
+   "charId": "char_248_mgllan",
+   "name": "绿影之下",
+   "group": "时代/LX"
   },
   {
    "skinId": "char_248_mgllan@kitchen#1",
