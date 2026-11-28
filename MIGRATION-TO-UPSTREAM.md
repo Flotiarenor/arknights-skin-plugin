@@ -1,18 +1,19 @@
 # 迁移总结：`arknights-skin-plugin` → `Stronghold-Protocol`
 
-> 写于 2026-11-23，对应 issue https://github.com/sganggs/Stronghold-Protocol/issues/996
+> 写于 2026-11-23，对应 issue https://github.com/sganggs/Stronghold-Protocol/issues/996；**归档记录 2026-11-28**
 > 核对基准：本机两份上游检出（D: 旧快照 / E: 新快照）＋ 本机客户端 `26-11-13` 热更 ＋ 插件仓库 `dev` @ `659c399`。
-> **2026-11-24 更新**：召唤物时装提取已由
-> [PR #1000](https://github.com/sganggs/Stronghold-Protocol/pull/1000) 实现（基于 `dev`，合并中）；
-> 本仓库 README 已改为归档说明，合并后归档。
+> **归档结果**：召唤物时装提取由 [PR #1000](https://github.com/sganggs/Stronghold-Protocol/pull/1000) 合入
+> （2026-11-26，合并提交 `ee9a858f`，history §37.351）；插件说明点名召唤物、只含召唤物的分卷由
+> [PR #1017](https://github.com/sganggs/Stronghold-Protocol/pull/1017) 补齐（2026-11-28，§37.373）。
+> 本仓库 README 已改为归档说明，仓库已归档为只读。
 
 ## 0. 结论
 
-外部仓库退役后，**唯一曾缺的能力是召唤物（token）时装提取**；它已由 PR #1000 补上（合并中），
+外部仓库退役后，**唯一曾缺的能力是召唤物（token）时装提取**；它已由 PR #1000 合入（2026-11-26），
 上游因此成为现有能力的超集：
 
 - 干员时装：上游同表结果 **347 套 / 224 干员**，与本仓库目录表**零差**。
-- 召唤物时装：本仓库 **88 套 / 57 token**；上游由 PR #1000 实现（运行时 #876 已在）。
+- 召唤物时装：本仓库 **88 套 / 57 token**；上游由 PR #1000 合入（运行时 #876 已在）。
 - 名册、热更合并、分卷打包、图库三层、皮肤语音槽：上游都已具备，不需要迁移。
 
 ## 1. 上游已有，不用迁
@@ -22,7 +23,7 @@
 | 干员时装提取（Front/Back 模型、立绘、半身像、头像 → cosmetic 插件） | `tools/local-extract/skins.py`（PR #776 端口：`9449bf70` → `917431ea` → `7155ddee`） | 已有 |
 | 皮肤自带语音槽 `voice` / `voiceJp` … | `shared/plugins/visual.js` 的 `OPERATOR_SKIN_RECORD`（PR #734 端口） | 已有 |
 | 召唤物时装的运行时、协议、渲染与回退 | PR #876：`tokens[<tokenId>].skins[<主人 skinId>]`，每 token ≤ 64 套，不带 voice | 已有 |
-| 召唤物时装提取 | [PR #1000](https://github.com/sganggs/Stronghold-Protocol/pull/1000)：`skins.py` 的 `token_plan` / `_faces` / `tokens` overlay，并入 `--only skins` | 合并中 |
+| 召唤物时装提取 | [PR #1000](https://github.com/sganggs/Stronghold-Protocol/pull/1000)（2026-11-26 合入，§37.351）：`skins.py` 的 `token_plan` / `_faces` / `tokens` overlay，并入 `--only skins`；说明与只含召唤物的分卷见 PR #1017 | 已合入 |
 | 插件格式与校验 | `shared/plugins/visual.js`、`schemas/overlay.schema.json`、`tools/plugin.mjs pack/check` | 已有 |
 | 热更合并视图 | `tools/local-extract/bundles.py` 的 `client_bundles`（按 active 索引选包，不按 mtime） | 已有，比本仓库的 `tools/merge-bundles.mjs` 更准 |
 | 分卷（512 MiB / 5000 文件 / 2000 目录） | `skins.py` 的 `Budget` / `part_folder` | 已有 |
@@ -35,9 +36,9 @@
 - 有时装的出场干员 **196 名，196/196 在册**；
 - `data/card-roster.json` 的 250 名**全部在册**。
 
-## 2. 唯一要迁的：召唤物时装（PR #1000 已实现，合并中）
+## 2. 已迁：召唤物时装（PR #1000，2026-11-26 合入，§37.351）
 
-`extract/token_skins.py`（256 行）→ 并入上游 `--only skins`，**不另开 `--only token-skins`**（维护者在 #996 的要求）。PR #1000 按上游接口重写，不拷贝本仓库的 `token_skins.py`（它依赖本仓库 vendored `extract.py` 的 `facings_of` 和不同签名的 `write_spine`）。
+`extract/token_skins.py`（256 行）→ 并入上游 `--only skins`，**不另开 `--only token-skins`**（维护者在 #996 的要求）。PR #1000 按上游接口重写并合入（2026-11-26，合并提交 `ee9a858f`），不拷贝本仓库的 `token_skins.py`（它依赖本仓库 vendored `extract.py` 的 `facings_of` 和不同签名的 `write_spine`）。
 
 | 环节 | 做法（已实现） |
 |---|---|
@@ -52,12 +53,13 @@
 | `--only skins/<charId>` | 连带该主人时装的召唤物 |
 | 两个标记单位 | `token_10039_ulpia_block_epoque#48`（乌尔比安「必须开辟的通路」的「[从不混淆的方向](https://prts.wiki/w/%E4%BB%8E%E4%B8%8D%E6%B7%B7%E6%B7%86%E7%9A%84%E6%96%B9%E5%90%91)」）与 `token_10055_phatm2_mndclv_sightseer#4`（酒神「空剧场」的「[迷狂牢笼](https://prts.wiki/w/%E8%BF%B7%E7%8B%82%E7%89%A2%E7%AC%BC)」）按设计没有模型，跳过是预期行为 |
 
-**落地（PR #1000）**：
+**落地（PR #1000，2026-11-26 合入）**：
 
 - `tools/local-extract/skins.py`：`token_plan` / `_faces` / `overlay` / `read_parts` / `manifest` / `keep_dirs` / `export` 的 `tokens` 分支与共用分卷、64 告警
 - `tools/local-extract/extract.py`：`skin_jobs` 读 `.chars` + `.tokens`；`--only skins/<charId>` 连带
 - `test/local-extract/skins.test.js`：fake UnityPy，覆盖映射 / Front-Back / 头像 / 64 / 权限 / 分卷 / `--limit` / `--only skins/<charId>` / `plugin.mjs pack`
-- `docs/SKINS.md`、`docs/PLUGINS.md` §9、`docs/ASSETS.md`、`docs/ARCHITECTURE.md`、`docs/history/0.4.0.md` §37.349、`CHANGELOG.md`
+- `docs/SKINS.md`、`docs/PLUGINS.md` §9、`docs/ASSETS.md`、`docs/ARCHITECTURE.md`、`docs/history/0.4.0.md` §37.351、`CHANGELOG.md`
+- 后续 [PR #1017](https://github.com/sganggs/Stronghold-Protocol/pull/1017)（2026-11-28，§37.373）：插件说明在分卷带召唤物时点名召唤物；只含召唤物的分卷也能 `pack` + `check --strict`
 
 ## 3. 不迁移的（退役时丢掉）
 
@@ -113,18 +115,30 @@ E: 那份就是 `catalogue/skins.json` 里 `source.officialSnapshot` 记录的�
 
 ## 6. 上游 PR 口径
 
-- 已实现为 [PR #1000](https://github.com/sganggs/Stronghold-Protocol/pull/1000)（分支 `feat/local-extract-token-skins`，base `dev`）：一个 PR、一个主题：`--only skins` 带召唤物；**不动名册、不提交目录表、不并部署脚本**。
+- 已由 [PR #1000](https://github.com/sganggs/Stronghold-Protocol/pull/1000) 合入（分支 `feat/local-extract-token-skins`，base `dev`，2026-11-26，合并提交 `ee9a858f`）：一个 PR、一个主题：`--only skins` 带召唤物；**不动名册、不提交目录表、不并部署脚本**。
 - 测试照 `test/local-extract/skins.test.js` 的假 UnityPy 写法（不需要客户端，16 个用例）；Pillow 相关测试在无 Pillow 分片跳过（#881）；Python 只要求 3.8 语法。
 - PR 描述已写清：官方表快照版本与 sha256、客户端热更版本、两个标记单位的跳过、64 上限的告警行为、套数与体积实测数字。
+- 合并后的复查 [PR #1017](https://github.com/sganggs/Stronghold-Protocol/pull/1017)（2026-11-28，§37.373）：插件说明在分卷带召唤物时点名召唤物，只含召唤物的分卷也能 `pack` + `check --strict`。
 
 ## 7. 退役检查表
 
-- [x] 上游 `--only skins` 带上召唤物时装，`tokens[id].skins` 与 #876 的运行时一致（PR #1000，合并中）
+- [x] 上游 `--only skins` 带上召唤物时装，`tokens[id].skins` 与 #876 的运行时一致（PR #1000，2026-11-26 合入，§37.351）
 - [x] `--only skins/<charId>` 连带该主人的召唤物
 - [x] 超过 64 套时告警（不静默截断）
 - [x] 不在安装清单里的 token 走 `assets.add`
 - [x] 分卷与 `plugin.mjs pack/check` 通过（含 `check --strict`）
 - [x] 文档与 history 更新，`node --test test/docs-consistency.test.js test/docs-paths.test.js` 通过
 - [x] `npm run golden` 无变化（291 场景全 match）；定向测试通过；本机 `npm run ci` 未跑完（环境原因，见 PR #1000 描述）
+- [x] 合并后复查（PR #1017）：说明文字与只含召唤物的分卷
 - [x] 本仓库 README 改为归档说明，指向上游文档
-- [ ] PR #1000 合并后归档仓库
+- [x] PR #1000 合入后归档仓库（2026-11-28，GitHub → Settings → Archive）
+
+## 8. 归档
+
+- 归档时间：2026-11-28；本仓库只读，README 保留为归档说明，本文件是完整迁移记录。
+- 留在本仓库的：`MIGRATION-TO-UPSTREAM.md`（本文件）、`catalogue/skins.json`（347 套纯元数据）、
+  `extract/token_skins.py`（参考实现，已被 PR #1000 按上游接口重写）、`deploy.mjs` 与 `tools/` 构建工具、
+  `extract/` 里的上游旧拷贝（GPL-3.0-or-later，见 `LICENSE`）。
+- 上游入口：`tools/local-extract/extract.py --only skins`（§37.331 干员时装 / §37.351 召唤物时装 / §37.373 说明与分卷）；
+  运行时 `tokens[<tokenId>].skins` 见 §37.18（PR #876）与 `docs/SKINS.md`。
+- 新问题请到上游仓库提；本仓库不再接受 PR。
